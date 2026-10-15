@@ -74,3 +74,14 @@ pip install -r requirements.txt
 2. **Distinct Timestamps**: Record source video offset (`timestamp_seconds`) distinctly from wall-clock time (`created_at`).
 3. **Keyframe Storage**: Save JPEG frames under a configurable relative path (`data/frames/CAM_XX/evt_<id>.jpg`). Store file paths only, never raw image bytes in SQLite.
 4. **Mock Stub Ready**: Provide `mock_emitter.py` early so Person 2, Person 3, and Person 4 can develop without waiting for detector calibration.
+
+# Person 1 implementation
+
+The runnable implementation is the importable `video_pipeline` package at repository root. It streams a local file; YOLO11n only detects COCO people, invokes Ultralytics ByteTrack, passes `Track` records to `behavioral_markers`, saves event keyframes, and emits only the authoritative Person 1 candidate packet shape.
+
+```powershell
+python -m pip install -e ".[person1]"
+python -m video_pipeline path\\to\\video.mp4 --camera-config video_pipeline\\example_camera.json --device cpu
+```
+
+`--device cuda:0` is available only when the installed PyTorch build has CUDA support. VLM inference is intentionally absent from this process; connect the optional callback or bounded queue in the integration owner’s code.

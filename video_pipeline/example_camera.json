@@ -1,0 +1,18 @@
+{
+  "camera_id": "CAM_DEMO",
+  "video_source_id": "synthetic_normal",
+  "health_persist_seconds": 1.0,
+  "freeze_persist_seconds": 1.0,
+  "zones": [
+    {
+      "zone_id": "demo_zone",
+      "polygon": [[0, 0], [96, 0], [96, 64], [0, 64]],
+      "restricted": true,
+      "loiter_seconds": 10,
+      "min_observations": 3,
+      "crowd_threshold": 3,
+      "crowd_persist_seconds": 2,
+      "cooldown_seconds": 15
+    }
+  ]
+}

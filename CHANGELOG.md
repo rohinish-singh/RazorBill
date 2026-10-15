@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-10-15 — CP3 Person 1 pipeline and acquisition audit
+
+- Added OpenCV file ingestion, YOLO11n/ByteTrack adapter, behavioral-marker integration, keyframe writer, contract-packet output, CLI, and Person 1 tests.
+- Ran CPU-only YOLO11n smoke tests on local synthetic videos; recorded measured values in the CP3 report without claiming person accuracy or GPU inference.
+- Verified UR Fall’s official CC BY-NC-SA 4.0 terms but did not download because intended-use compatibility remains unresolved. Roboflow, RWF-2000, and Le2i remain blocked as documented.
+
 ## 2026-10-15 — CP2 behavioral markers
 
 - Added review-oriented restricted-zone, loitering, crowd, camera darkness, obstruction-candidate, frozen-feed-candidate, and source-read-failure markers without modifying the shared contract or teammate-owned modules.

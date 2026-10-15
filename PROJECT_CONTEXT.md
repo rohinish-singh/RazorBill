@@ -11,3 +11,7 @@ Status: complete pending team review. CP1 adds only offline dataset/contract/eva
 ## CP2
 
 Status: complete pending review. Added the standalone behavioral marker engine, synthetic-data generator source, a synthetic catalog, and CP2 documentation. No external dataset or model was downloaded; camera-health mapping remains an internal compatibility proposal using the shared `other` category.
+
+## CP3
+
+Status: complete pending review. Person 1 owns the new local video file pipeline. It is contract-compatible and measured on CPU-only YOLO11n smoke inputs; GPU inference, real person-track evaluation, and external dataset acquisition remain blocked as documented.

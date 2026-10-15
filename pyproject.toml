@@ -8,6 +8,7 @@ dependencies = ["numpy>=2"]
 [project.optional-dependencies]
 dev = ["pytest>=7"]
 synthetic-video = ["opencv-python-headless>=4.10"]
+person1 = ["opencv-python-headless>=4.10", "ultralytics>=8.3"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
