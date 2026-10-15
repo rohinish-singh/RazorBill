@@ -2,13 +2,14 @@
 
 **Owner**: Person 1  
 **Detailed Guide**: [`../docs/PERSON_1_VIDEO_PIPELINE.md`](../docs/PERSON_1_VIDEO_PIPELINE.md)  
-**Contract Reference**: [`../SHARED_CONTRACTS.md`](../SHARED_CONTRACTS.md)
+**Contract Reference**: [`../SHARED_CONTRACTS.md`](../SHARED_CONTRACTS.md)  
+**Reference Repository**: [Devnil434/Eagle](https://github.com/Devnil434/Eagle)
 
 ---
 
 ## Overview
 
-The `video-pipeline/` module handles video ingestion (pre-recorded clips and simulated live streams), frame sampling, object detection and tracking, anomaly trigger evaluation, and evidence frame extraction. When an anomaly is detected, it packages a **Candidate Event Packet** and pushes it to a non-blocking queue.
+The `video-pipeline/` module handles video ingestion (pre-recorded clips and simulated live streams), frame sampling, object detection and tracking, anomaly trigger evaluation, and keyframe extraction. When an anomaly is detected, it packages a **Candidate Event Packet** and pushes it to a bounded queue or callback for Person 2.
 
 ---
 
@@ -20,9 +21,9 @@ video-pipeline/
 ├── requirements.txt
 ├── src/
 │   ├── ingestion.py       # Video capture and frame sampling loop
-│   ├── detection.py       # Object detection & bounding box tracking
-│   ├── heuristics.py      # Rule triggers (aspect ratio drop, convergence)
-│   ├── evidence.py        # Frame exporter and path generator
+│   ├── detection.py       # Object detection & bounding box tracking (inspect Eagle)
+│   ├── heuristics.py      # Rule triggers (aspect ratio drop, trajectory convergence)
+│   ├── evidence.py        # Frame exporter and path generator (data/frames/CAM_XX/...)
 │   └── queue_producer.py  # Bounded queue worker and drop counter
 ├── tests/
 │   └── test_heuristics.py # Unit tests on trigger heuristics
@@ -47,10 +48,29 @@ pip install -r requirements.txt
 
 ---
 
+## Candidate Event Packet Format
+
+```json
+{
+  "event_id": "evt_unique_id",
+  "camera_id": "CAM_01",
+  "video_source_id": "demo_video_01",
+  "timestamp_seconds": 134.5,
+  "frame_path": "data/frames/CAM_01/evt_unique_id.jpg",
+  "frame_paths": [],
+  "tracks": [
+    {"track_id": 12, "class_name": "person", "bbox_xyxy": [120, 80, 260, 410]}
+  ],
+  "trigger": "sampled_frame",
+  "created_at": "2026-10-15T10:00:00Z"
+}
+```
+
+---
+
 ## Core Engineering Directives
 
-1. **Non-Blocking Execution**: The video capture loop must push candidate packets to a bounded queue (`maxsize=50`). Never block frame capture waiting for downstream inference.
+1. **Non-Blocking Execution**: The video capture loop must push candidate packets to a bounded queue. Never block frame capture waiting for downstream VLM inference.
 2. **Distinct Timestamps**: Record source video offset (`timestamp_seconds`) distinctly from wall-clock time (`created_at`).
-3. **Evidence Storage**: Save JPEG frames into `../data/evidence/` with unique names (`evt_<id>_key.jpg`). Store file paths only, never raw image bytes in data structures.
+3. **Keyframe Storage**: Save JPEG frames under a configurable relative path (`data/frames/CAM_XX/evt_<id>.jpg`). Store file paths only, never raw image bytes in SQLite.
 4. **Mock Stub Ready**: Provide `mock_emitter.py` early so Person 2, Person 3, and Person 4 can develop without waiting for detector calibration.
-

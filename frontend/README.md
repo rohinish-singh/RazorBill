@@ -8,7 +8,7 @@
 
 ## Overview
 
-The `frontend/` module is a high-performance web dashboard built with **React**, **Vite**, and **TypeScript**. It provides operators with live incident feeds, evidence frame inspections, category filters, aggregate statistics, conversational query search, and demo failover controls.
+The `frontend/` module is a high-performance web dashboard built with **React**, **Vite**, and **TypeScript**. It provides operators with live monitoring, incident list/detail views with keyframes, interactive category and camera filters, conversational natural-language querying, and measured latency/evaluation metrics.
 
 ---
 
@@ -27,16 +27,16 @@ frontend/
 │   ├── types/
 │   │   └── contracts.ts   # TypeScript interfaces matching SHARED_CONTRACTS.md
 │   ├── services/
-│   │   └── api.ts         # Axios/Fetch client for backend endpoints
+│   │   └── api.ts         # Central API client reading VITE_API_BASE_URL
 │   ├── components/
-│   │   ├── MetricBar.tsx      # KPI stats summary cards
-│   │   ├── IncidentFeed.tsx   # Live list/grid of incidents
-│   │   ├── IncidentCard.tsx   # Individual card with image thumbnail
-│   │   ├── FilterBar.tsx      # Category and camera select controls
-│   │   ├── QueryPanel.tsx     # Conversational natural-language query bar
-│   │   └── DemoModal.tsx      # Seed data fallback & scenario selector
+│   │   ├── MetricBar.tsx      # Metrics panel showing measured latency
+│   │   ├── IncidentFeed.tsx   # Live list of incidents with status
+│   │   ├── IncidentDetail.tsx # Incident detail view with keyframe/evidence
+│   │   ├── FilterBar.tsx      # Category, camera, and date filters
+│   │   ├── QueryPanel.tsx     # Conversational NL query input and results
+│   │   └── DemoModal.tsx      # Fallback mode using seeded demo data
 │   └── mock/
-│       └── fallbackData.ts    # Seeded incident array for offline demo
+│       └── mockData.ts        # Mock incident array matching shared contracts
 ```
 
 ---
@@ -49,14 +49,19 @@ npm install
 npm run dev
 ```
 
-The application runs on `http://localhost:5173` and proxies or connects directly to the backend at `http://localhost:8000`.
+### Environment Configuration
+The frontend communicates exclusively with the backend via a configurable base URL:
+```env
+VITE_API_BASE_URL=http://localhost:8000
+```
+Never hardcode teammate-specific IP addresses or hostnames.
 
 ---
 
 ## Core Engineering Directives
 
-1. **Dual Timestamps**: Visually separate video source offset (`timestamp_seconds`, e.g. `00:42.5`) from wall-clock creation time (`created_at`, e.g. `21:45:00 UTC`).
-2. **Contract Type Safety**: Use `types/contracts.ts` generated strictly from [`../SHARED_CONTRACTS.md`](../SHARED_CONTRACTS.md).
-3. **Resilient Query UX**: When `POST /api/query` returns `unsupported`, render a clear clarification prompt (e.g., *"Try searching by category like 'fighting' or camera name"*), rather than breaking or presenting blank results.
-4. **Offline Demo Readiness**: Provide a 1-click fallback toggle to load mock incidents from `mock/fallbackData.ts` if the backend connection is interrupted during presentation.
-
+1. **Independent Mock Mode**: Work with mock data immediately using the schema defined in `SHARED_CONTRACTS.md`. Do not wait for backend implementation to build the UI.
+2. **Defensive UI States**: Provide comprehensive loading, empty, error, offline, and missing-frame states.
+3. **Status Distinctions**: Distinctly indicate `candidate`, `classified`, `needs_review`, and `failed`. Show pending status rather than freezing the interface.
+4. **Resilient Query UX**: When a query is unsupported, display a clear clarification response rather than breaking.
+5. **No Fabricated Metrics**: Only display measured latency and verified evaluation data; clearly label mock data when operating in fallback mode.

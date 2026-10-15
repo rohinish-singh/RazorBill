@@ -1,55 +1,43 @@
-# Person 3 Guide: Backend API & Natural Language Querying
+# Person 3 — FastAPI, SQLite, Incident Persistence, and Queries
 
-## 1. Ownership & Boundary
-- **Directory**: [`backend/`](../backend/README.md)
-- **Role**: Build the FastAPI application, SQLite persistence engine, incident upsert logic, static frame serving, filtered listing, dashboard statistics, and the deterministic natural-language query engine.
-- **This is the core workstream for Person 3**.
-- **What You DO NOT Own**:
-  - Do NOT write OpenCV video capture or motion tracking code (owned by [Person 1](PERSON_1_VIDEO_PIPELINE.md)).
-  - Do NOT download or execute local VLM weights (owned by [Person 2](PERSON_2_VLM_CLASSIFICATION.md)).
-  - Do NOT implement React components or CSS styling (owned by [Person 4](PERSON_4_FRONTEND_DEMO.md)).
+## Mission
+Own the API and stored incident source of truth. Implement incident persistence, filtering, statistics, and safe natural-language query mapping.
 
----
+## Must have
+- FastAPI service with `GET /health`.
+- SQLite with documented schema/init logic and configurable database path.
+- `POST /api/incidents` to validate and upsert by stable `event_id`.
+- `GET /api/incidents` with camera/category/date filters and pagination.
+- `GET /api/incidents/{event_id}`.
+- `GET /api/stats`.
+- `POST /api/query` for natural-language questions over stored events.
+- Pydantic validation, CORS configuration, clear errors, seed/mock data.
+- Timing fields and basic latency summaries.
 
-## 2. MVP Priorities
+## Stretch
+Better date parsing, JSON/CSV export. Only add local-model query interpretation if safe and fast.
 
-1. **FastAPI Foundation & Static File Serving**:
-   - Set up FastAPI app with CORS middleware enabled for local React frontend development (`http://localhost:5173`).
-   - Mount `/evidence` to serve static frame images from local directory `data/evidence/`.
-2. **SQLite Database & Upsert Logic**:
-   - Create `incidents` table with indices on `event_id`, `camera_id`, `category`, `created_at`.
-   - Store local image paths (e.g. `data/evidence/evt_123.jpg`), **never raw image bytes**.
-   - `POST /api/incidents` must perform an **upsert** keyed on `event_id` (so an event can first arrive as `candidate` from Person 1 and later be updated to `classified` by Person 2).
-3. **Filtering & Statistics Endpoints**:
-   - `GET /api/incidents`: Support pagination (`limit`, `offset`), filtering by `camera_id`, `category`, `status`, and time ranges. Return both `total` and `items`.
-   - `GET /api/stats`: Compute real-time aggregations (counts grouped by category, status, camera).
-4. **Deterministic Natural Language Query Engine (`POST /api/query`)**:
-   - Extract intent deterministically from user queries (e.g., matching keywords to categories, cameras, and time horizons).
-   - **CRITICAL SECURITY RULE**: Never pass raw text or LLM-generated SQL directly to `sqlite3.execute()`.
-   - Always build **parameterized SQL queries** (`SELECT ... WHERE category = ? AND camera_id = ?`) using allowlisted columns only.
-   - For queries that cannot be mapped to supported filters, return a structured `unsupported` status with a helpful clarification rather than guessing or fabricating results.
+## Do not own
+Detection/tracking, VLM implementation, frontend, arbitrary SQL generation, complex auth unless required.
 
----
+## Query behavior
+Support a constrained set of patterns: category, camera, today/date range, newest/oldest, counts, and combinations. Map language to structured filters and parameterized SQL. Never execute arbitrary LLM-generated SQL. If uncertain, ask for clarification or return `unsupported_query`. Never fabricate records or answers. Confirm camera naming and timezone conventions with the team.
 
-## 3. Shared Endpoints & Schemas
+## Database
+Store stable event ID, camera, source-relative timestamp, optional wall-clock timestamp, category, summary, nullable confidence/type, keyframe path, source/status, processing time, evidence notes, created/updated timestamps. Index common filters. Store paths, not base64 image bytes.
 
-Refer to [`SHARED_CONTRACTS.md`](../SHARED_CONTRACTS.md) for full JSON definitions.
+## Deliverables and acceptance
+- Runnable API and SQLite setup.
+- Endpoint examples/curl commands and OpenAPI docs.
+- Seed script/fixtures.
+- Tests for insert/upsert, filters, invalid payloads, and query parsing.
+- Duplicate event IDs update rather than duplicate.
+- Unsupported queries do not fabricate results.
+- Configurable paths and predictable errors.
+- Frontend can use seeded data before Person 1/2 are ready.
 
-- `GET /health` $\to$ Returns health status, uptime, and database connection state.
-- `POST /api/incidents` $\to$ Upserts candidate or classified incident.
-- `GET /api/incidents` $\to$ List incidents with query params (`camera_id`, `category`, `status`, `start_time`, `end_time`, `limit`, `offset`).
-- `GET /api/incidents/{event_id}` $\to$ Single incident detail or 404.
-- `GET /api/stats` $\to$ Aggregated counts by category, camera, and status.
-- `POST /api/query` $\to$ Body: `{"query": "string"}`. Returns interpreted filters and matched incidents.
+## Time box
+0–2 h schema/contracts; 2–6 h API skeleton and seed data; 6–12 h CRUD/filters; 12–18 h query/stats; 18–24 h integration; then edge cases.
 
----
-
-## 4. Early Deliverables Schedule
-
-- **Hour 2**: Finalize endpoint parameters and response shapes in [`SHARED_CONTRACTS.md`](../SHARED_CONTRACTS.md).
-- **Hour 6**: Deliver runnable FastAPI stub with in-memory or SQLite storage responding to all endpoints with mock data.
-- **Hour 12**: Complete end-to-end slice: accept `POST /api/incidents` from Person 2 and serve live updates to Person 4.
-- **Hour 18**: Implement deterministic NL query parser with keyword/regex mapping and parameterized SQL.
-- **Hour 24**: Test SQL injection resistance, edge-case query parsing, and pagination performance with 1,000+ synthetic records.
-- **Hour 30**: Lock down backend codebase during feature freeze; ensure demo seed script (`seed_demo_data.py`) is verified.
-
+## Copy-paste ChatGPT/Claude prompt
+You are helping Person 3 on a 36-hour open-source live video event summarization/classification/querying project. Read `README.md`, `SHARED_CONTRACTS.md`, and this file. Inspect the repo before creating files. My ownership is FastAPI, SQLite, incident persistence, filters, stats, and safe natural-language querying. Do not implement detection, VLM, or frontend. Match the shared contracts and propose changes before making assumptions. Use Pydantic, parameterized SQL, stable event IDs/upsert, configurable paths, and seeded mock incidents. Natural language must map to constrained filters; never execute arbitrary LLM-generated SQL or fabricate results. Include run instructions, API examples, tests, predictable errors, and timing fields. Avoid unnecessary infrastructure and coupling to another person's private implementation.

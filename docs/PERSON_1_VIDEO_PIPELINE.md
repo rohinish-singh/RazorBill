@@ -1,65 +1,51 @@
-# Person 1 Guide: Video Ingestion & Event Detection Pipeline
+# Person 1 — Video Ingestion, Detection, and Tracking
 
-## 1. Ownership & Boundary
-- **Directory**: [`video-pipeline/`](../video-pipeline/README.md)
-- **Role**: Ingest video streams/files, run frame sampling, execute object detection/tracking, identify candidate anomaly triggers, save key evidence frames, and emit candidate event packets to the processing queue.
-- **What You DO NOT Own**:
-  - Do NOT run heavy Vision-Language Models (VLMs) or generate natural-language incident summaries (owned by [Person 2](PERSON_2_VLM_CLASSIFICATION.md)).
-  - Do NOT write directly to SQLite or create REST APIs (owned by [Person 3](PERSON_3_BACKEND_QUERYING.md)).
-  - Do NOT build dashboard visualizations or UI alerts (owned by [Person 4](PERSON_4_FRONTEND_DEMO.md)).
+## Mission
+Own video input and the fast processing path. Produce stable candidate packets for Person 2. Optimize for bounded latency and predictable resource use.
 
----
+## Must have
+- Open a local video with OpenCV (required reliable demo path).
+- Configurable frame sampling.
+- Lightweight open-source detector, preferably reusing compatible Eagle code.
+- Tracking if stable within the time budget; otherwise document a stub.
+- Save selected keyframes under a configurable data directory.
+- Emit the packet in `SHARED_CONTRACTS.md`.
+- Record detection/read timing and dropped frames/candidates.
+- Provide a stub producer so integration can begin before detection is finished.
 
-## 2. MVP Priorities
+## Stretch
+Webcam, RTSP, zone-entry triggers, multiple sources.
 
-1. **Clip Playback & Frame Sampler**: Read video files (e.g. OpenCV `cv2.VideoCapture`) at steady frame intervals (e.g., 2–5 FPS sampling to conserve compute).
-2. **Detection & Tracking**: Lightweight detector (e.g., YOLOv8n or basic motion tracker) tracking person bounding boxes and trajectory changes.
-3. **Trigger Heuristics**:
-   - *Person Down*: Sudden change in bounding box aspect ratio (width > height) or sudden drop in bounding box vertical centroid followed by lack of movement.
-   - *Tailgating*: Multiple person tracks entering a designated ROI within a rapid time window (< 1.5s).
-4. **Evidence Frame Extractor**: When a trigger fires, export the key frame (`evt_<id>_key.jpg`) and optionally 2 contextual frames to disk (`data/evidence/`).
-5. **Non-Blocking Queue Producer**: Push candidate packet to a bounded queue (`queue.Queue(maxsize=50)`). Never block the video stream if the consumer is slow.
+## Do not own
+VLM classification, database/API, frontend, custom model training.
 
----
+## First steps
+1. Inspect Eagle's detection/tracking code, commands, dependencies, weights and licenses.
+2. Try the smallest demo; verify on actual hardware.
+3. Report blockers early. Do not spend hours repairing unrelated infrastructure.
+4. Agree on a public interface by hour 4.
 
-## 3. Shared Interface: Candidate Event Packet
+## Suggested interface
+`process_video(source, config, on_candidate)` where `on_candidate(event_packet)` is called for each candidate. Callback/iterator/queue are all acceptable, but document the choice and get agreement first. Do not expose private detector classes to Person 2.
 
-You must produce JSON packets strictly matching the schema in [`SHARED_CONTRACTS.md`](../SHARED_CONTRACTS.md):
+## Latency rules
+- Never call the VLM in the capture/detection loop.
+- Use a bounded queue/callback and avoid loading the entire video into RAM.
+- Skip redundant work if downstream processing is behind; count drops.
+- Measure with a monotonic clock.
+- Do not claim real-time performance until tested.
 
-```json
-{
-  "event_id": "evt_01J8F90A8K72M1",
-  "camera_id": "cam_north_gate_01",
-  "video_source_id": "warehouse_dock_clip1.mp4",
-  "timestamp_seconds": 42.5,
-  "frame_path": "data/evidence/evt_01J8F90A8K72M1_key.jpg",
-  "frame_paths": [
-    "data/evidence/evt_01J8F90A8K72M1_key.jpg"
-  ],
-  "tracks": [
-    {
-      "track_id": 12,
-      "bbox": [140, 210, 280, 480],
-      "class": "person"
-    }
-  ],
-  "trigger": "rapid_aspect_ratio_drop",
-  "created_at": "2026-10-15T21:45:00Z"
-}
-```
+## Deliverables and acceptance
+- Runnable file pipeline and setup instructions.
+- Sample packet JSON and valid keyframe.
+- Tests for invalid source and packet shape.
+- Detector works on one test clip.
+- Errors are readable; slow downstream work cannot stall capture indefinitely.
+- Note model/tracker, hardware, sampling rate and measured timings.
+- Configurable paths; no teammate-specific absolute paths.
 
-### Critical Rules
-- `timestamp_seconds`: Floating-point offset within the source video (e.g., `42.5` seconds), NOT wall-clock time.
-- `created_at`: UTC ISO-8601 string when detection happened.
-- `frame_path`: Valid path on local disk where your code saved the image.
+## Time box
+0–2 h inspect/hardware; 2–6 h file input and packet stub; 6–12 h detector/tracker; 12–18 h integration; then only optimize after vertical slice works.
 
----
-
-## 4. Early Deliverables Schedule
-
-- **Hour 2**: Review and confirm Candidate Event packet schema with [Person 2](PERSON_2_VLM_CLASSIFICATION.md) and [Person 3](PERSON_3_BACKEND_QUERYING.md).
-- **Hour 6**: Create runnable stub (`mock_emitter.py`) that reads a video or loop and dumps mock candidate packets + mock JPEG files to disk every 5 seconds.
-- **Hour 12**: Working video ingestion loop with OpenCV saving real keyframes to `data/evidence/`.
-- **Hour 18**: Connect pipeline to Person 2's VLM inference queue.
-- **Hour 24**: Test queue backpressure: drop excess candidate frames cleanly when consumer is saturated and record drop statistics.
-
+## Copy-paste ChatGPT/Claude prompt
+You are helping Person 1 on a 36-hour project for open-source live video event summarization/classification/querying. Read `README.md`, `SHARED_CONTRACTS.md`, and this file first. Inspect Eagle before writing replacement code. My ownership is video ingestion, frame sampling, detection, tracking, keyframe saving, and candidate packets. Do not implement VLM, database, or frontend. Match the shared packet schema. If a detail is unresolved, make a small adapter/stub and document the assumption rather than hard-coupling to another module. Avoid absolute paths, unbounded queues, and loading full videos into RAM. Keep VLM out of the capture loop. Include run instructions, sample output, tests, timing instrumentation, and limitations. Do not invent benchmarks. Propose shared contract changes before making them.
