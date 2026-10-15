@@ -27,6 +27,20 @@ def test_fighting_is_proximity_motion_cue_not_an_assertion():
     assert fight.category == "fighting" and "not proof" in fight.evidence["caveat"]
 
 
+def test_simultaneous_interaction_pairs_become_one_review_episode():
+    marker = engine(person_down_persist_seconds=99, fighting_pair_distance=100, fighting_motion_pixels_per_second=100, fighting_persist_seconds=0)
+    marker.process_incidents(0.0, [Track(1, (0, 0, 20, 80)), Track(2, (30, 0, 50, 80)), Track(3, (60, 0, 80, 80))])
+    events = marker.process_incidents(0.1, [Track(1, (20, 0, 40, 80)), Track(2, (50, 0, 70, 80)), Track(3, (80, 0, 100, 80))])
+    fight_ids = [event.event_id for event in events if event.marker_type == "fighting_candidate"]
+    assert len(fight_ids) == 1 and len(events[0].tracks) == 3
+
+
+def test_simultaneous_object_flags_get_unique_event_ids():
+    marker = engine(person_down_persist_seconds=99)
+    events = marker.process_incidents(0.0, [], [ObjectFlag("knife", 0.9, (1, 1, 5, 5)), ObjectFlag("knife", 0.8, (6, 1, 10, 5))])
+    assert len(events) == 2 and len({event.event_id for event in events}) == 2
+
+
 def test_weapon_flags_require_specialized_detector_input_and_reset():
     marker = engine(person_down_persist_seconds=99)
     knife = ObjectFlag("knife", 0.9, (1, 1, 5, 5))

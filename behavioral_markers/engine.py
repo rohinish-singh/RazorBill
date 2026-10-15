@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from hashlib import sha1
 from math import hypot
 from .camera_health import FrameObservation
 from .schemas import CameraConfig, MarkerEvent, ObjectFlag, Track
@@ -78,10 +79,16 @@ class MarkerEngine:
                 motion = max(velocities.get(str(first.track_id), 0.0), velocities.get(str(second.track_id), 0.0))
                 if distance <= settings.fighting_pair_distance and motion >= settings.fighting_motion_pixels_per_second:
                     pairs[pair_id] = (first, second, distance, motion)
-        events += self._sustained_incident("fighting_candidate", "fighting", timestamp_seconds, pairs,
+        # A crowded interaction can create many qualifying pairs in one frame. It
+        # is one review episode, not one incident per pair.
+        episodes = {}
+        if pairs:
+            participants = {str(track.track_id): track for pair in pairs.values() for track in pair[:2]}
+            episodes["scene"] = (tuple(participants[key] for key in sorted(participants)), len(pairs), min(pair[2] for pair in pairs.values()), max(pair[3] for pair in pairs.values()))
+        events += self._sustained_incident("fighting_candidate", "fighting", timestamp_seconds, episodes,
                                            settings.fighting_persist_seconds,
-                                           lambda item: {"track_ids": [item[0].track_id, item[1].track_id], "centre_distance": item[2], "max_motion_pixels_per_second": item[3], "caveat": "proximity/motion cue; not proof of fighting"},
-                                           lambda item: [item[0], item[1]])
+                                           lambda item: {"track_ids": [track.track_id for track in item[0]], "qualifying_pair_count": item[1], "nearest_centre_distance": item[2], "max_motion_pixels_per_second": item[3], "caveat": "proximity/motion cue; not proof of fighting"},
+                                           lambda item: list(item[0]))
 
         flags = [flag for flag in object_flags or [] if flag.confidence >= settings.object_confidence_threshold]
         for label, marker in (("knife", "weapon_knife_candidate"), ("firearm", "weapon_firearm_candidate")):
@@ -151,7 +158,9 @@ class MarkerEngine:
         # before the same condition is eligible again, and cooldown still applies.
         if key in self._active_alerts or now - self._last_alert.get(key, float("-inf")) < cooldown: return []
         self._last_alert[key] = now; self._active_alerts.add(key)
-        event_id = f"marker_{self.config.camera_id}_{marker}_{int(now * 1000)}"
+        # Several distinct track pairs can trigger in one sampled frame. Include a
+        # stable key digest so their packet IDs and keyframe paths cannot collide.
+        event_id = f"marker_{self.config.camera_id}_{marker}_{int(now * 1000)}_{sha1(key.encode()).hexdigest()[:8]}"
         return [MarkerEvent(event_id, self.config.camera_id, self.config.video_source_id, now, marker, category, "needs_review", marker, evidence, tuple(tracks))]
 
     def _reset_alert(self, key: str) -> None:

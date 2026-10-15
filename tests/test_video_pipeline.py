@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import json
 import numpy as np
 import pytest
 
@@ -71,3 +72,10 @@ def test_specialized_object_flags_emit_contract_candidate_and_keyframe(tmp_path)
 
 def test_weapon_model_class_mapping_is_explicit():
     assert _weapon_labels(["0=knife", "2=firearm"]) == {0: "knife", 2: "firearm"}
+
+def test_portable_person2_fixture_is_contract_valid_and_openable():
+    repo_root = Path(__file__).resolve().parents[1]
+    packet = json.loads((repo_root / "demo_assets/person1/sample_candidate.jsonl").read_text(encoding="utf-8").splitlines()[0])
+    keyframe = repo_root / packet["frame_path"]
+    assert validate_candidate_packet(packet) == [] and keyframe.is_file()
+    assert cv2.imread(str(keyframe)) is not None

@@ -23,3 +23,7 @@ Status: local checkpoint pending review. CUDA inference and a real staged-video 
 ## Person 1 incident candidates
 
 Status: local implementation pending review. Person 1 now has opt-in review cues for person-down and close/high-motion interactions, and accepts explicit knife/firearm flags only from a separately supplied specialized detector. No external weapon model, unverified reference footage, or shared-contract change was added.
+
+## CP5
+
+Status: local validation complete pending review. Five organizer clips were tested locally under conservative and interaction-review configurations; results and limitations are documented without committing footage. Person 2 has an original, portable contract fixture and keyframe for integration testing.

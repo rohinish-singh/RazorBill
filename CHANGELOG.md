@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-10-16 — CP5 incident-candidate validation
+
+- Validated conservative and interaction-review Person 1 cues locally against five uncommitted organizer clips; all emitted packets validated and keyframes opened locally.
+- Aggregated simultaneous fighting pairs into one continuous review episode and added stable event-ID suffixes to prevent packet/keyframe collisions.
+- Added an original synthetic portable packet/keyframe fixture for Person 2; no organizer footage or derived media was committed.
+
 ## 2026-10-16 — Person 1 incident candidate layer
 
 - Added opt-in, review-only person-down and proximity/motion fighting cues, plus an optional explicitly mapped knife/firearm detector adapter.
