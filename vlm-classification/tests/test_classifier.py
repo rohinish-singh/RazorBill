@@ -74,7 +74,9 @@ class ClassifierTests(unittest.TestCase):
         invalid_tracks = [
             ["person"],
             [{"track_id": 1, "class_name": "person"}],
-            [{"track_id": "one", "class_name": "person", "bbox_xyxy": [0, 0, 1, 1]}],
+            [{"track_id": "", "class_name": "person", "bbox_xyxy": [0, 0, 1, 1]}],
+            [{"track_id": "   ", "class_name": "person", "bbox_xyxy": [0, 0, 1, 1]}],
+            [{"track_id": True, "class_name": "person", "bbox_xyxy": [0, 0, 1, 1]}],
             [{"track_id": 1, "class_name": "person", "bbox_xyxy": [0, 0, float("nan"), 1]}],
         ]
         for tracks in invalid_tracks:
@@ -85,6 +87,18 @@ class ClassifierTests(unittest.TestCase):
     def test_valid_track_shape_is_accepted(self):
         valid = dict(self.candidate, tracks=[{
             "track_id": 12, "class_name": "person", "bbox_xyxy": [120, 80, 260, 410],
+        }])
+        self.assertIs(validate_candidate(valid), valid)
+
+    def test_string_track_id_is_accepted(self):
+        valid = dict(self.candidate, tracks=[{
+            "track_id": "track-alpha", "class_name": "person", "bbox_xyxy": [120, 80, 260, 410],
+        }])
+        self.assertIs(validate_candidate(valid), valid)
+
+    def test_person1_synthetic_track_id_is_accepted(self):
+        valid = dict(self.candidate, tracks=[{
+            "track_id": "synthetic-1", "class_name": "person", "bbox_xyxy": [120, 80, 260, 410],
         }])
         self.assertIs(validate_candidate(valid), valid)
 

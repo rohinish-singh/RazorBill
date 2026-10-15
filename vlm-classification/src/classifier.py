@@ -88,8 +88,12 @@ def validate_candidate(candidate: Any) -> dict[str, Any]:
     for index, track in enumerate(candidate["tracks"]):
         if not isinstance(track, dict):
             raise CandidateError(f"tracks[{index}] must be an object")
-        if "track_id" not in track or isinstance(track["track_id"], bool) or not isinstance(track["track_id"], int):
-            raise CandidateError(f"tracks[{index}].track_id must be an integer")
+        track_id = track.get("track_id")
+        valid_track_id = (
+            isinstance(track_id, int) and not isinstance(track_id, bool)
+        ) or (isinstance(track_id, str) and bool(track_id.strip()))
+        if not valid_track_id:
+            raise CandidateError(f"tracks[{index}].track_id must be a non-empty string or integer")
         if not isinstance(track.get("class_name"), str) or not track["class_name"].strip():
             raise CandidateError(f"tracks[{index}].class_name must be a non-empty string")
         bbox = track.get("bbox_xyxy")
