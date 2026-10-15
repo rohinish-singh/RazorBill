@@ -61,6 +61,31 @@ def _validate_iso_timestamp(v: Any) -> str:
     return v
 
 
+def normalize_boundary(val: str, is_end: bool = False) -> str:
+    """Normalize and validate a date/time boundary string to ISO 8601 UTC format.
+
+    - Date-only input ('YYYY-MM-DD'):
+        - start (is_end=False) -> 'YYYY-MM-DDT00:00:00Z'
+        - end (is_end=True) -> 'YYYY-MM-DDT23:59:59.999999Z' (inclusive of entire day)
+    - ISO datetime input ('YYYY-MM-DDTHH:MM:SSZ'):
+        - Validated as strict UTC ISO timestamp using _validate_iso_timestamp.
+    """
+    if not isinstance(val, str) or not val.strip():
+        raise ValueError("Timestamp boundary must be a non-empty string")
+    clean_val = val.strip()
+
+    # Check for date-only format (YYYY-MM-DD)
+    if len(clean_val) == 10 and clean_val.count("-") == 2:
+        try:
+            datetime.strptime(clean_val, "%Y-%m-%d")
+        except ValueError as e:
+            raise ValueError(f"Invalid date format: {e}")
+        return f"{clean_val}T23:59:59.999999Z" if is_end else f"{clean_val}T00:00:00Z"
+
+    # Full ISO datetime string: enforce strict UTC format
+    return _validate_iso_timestamp(clean_val)
+
+
 class CandidateEventPacket(BaseModel):
     event_id: str
     camera_id: str
@@ -98,3 +123,29 @@ class ClassifiedIncident(BaseModel):
     def validate_created_at(cls, v: Any) -> str:
         return _validate_iso_timestamp(v)
 
+
+class IncidentListResponse(BaseModel):
+    items: list[ClassifiedIncident]
+    total: int = Field(..., ge=0)
+    limit: int = Field(..., ge=1, le=100)
+    offset: int = Field(..., ge=0)
+
+
+class StatsResponse(BaseModel):
+    total: int = Field(..., ge=0, description="Total incident count")
+    by_category: dict[str, int] = Field(..., description="Incident counts grouped by canonical category")
+    by_status: dict[str, int] = Field(..., description="Incident counts grouped by canonical status")
+    by_camera: dict[str, int] = Field(..., description="Incident counts grouped by camera ID")
+    recent_activity_count: int = Field(..., ge=0, description="Number of incidents in the last 24 hours")
+
+
+class QueryRequest(BaseModel):
+    question: str = Field(..., description="Natural language question about stored incidents")
+
+
+class QueryResponse(BaseModel):
+    question: str = Field(..., description="Original user question")
+    interpreted_filters: dict[str, Any] = Field(default_factory=dict, description="Parsed structured query filters")
+    answer: str = Field(..., description="Evidence-backed natural-language summary answer")
+    incidents: list[ClassifiedIncident] = Field(default_factory=list, description="Matching incident records")
+    status: str = Field(default="success", description="Query resolution status: success or unsupported_query")
