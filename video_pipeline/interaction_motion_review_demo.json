@@ -1,0 +1,15 @@
+{
+  "camera_id": "CAM_LOCAL_INTERACTION_REVIEW",
+  "video_source_id": "local_reference",
+  "zones": [],
+  "incident": {
+    "enabled": true,
+    "cooldown_seconds": 30.0,
+    "person_down_aspect_ratio": 100.0,
+    "person_down_persist_seconds": 1.0,
+    "fighting_pair_distance": 160.0,
+    "fighting_motion_pixels_per_second": 250.0,
+    "fighting_persist_seconds": 0.0,
+    "object_confidence_threshold": 0.50
+  }
+}

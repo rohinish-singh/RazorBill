@@ -10,12 +10,16 @@ from typing import Callable, Protocol
 from behavioral_markers.camera_health import observe_frame
 from behavioral_markers.engine import MarkerEngine
 from behavioral_markers.event_adapter import to_candidate_packet
-from behavioral_markers.schemas import CameraConfig, Track
+from behavioral_markers.schemas import CameraConfig, ObjectFlag, Track
 from datasets_incident_detection.contracts import validate_candidate_packet
 
 
 class DetectorTracker(Protocol):
     def tracks(self, frame) -> list[Track]: ...
+
+
+class ObjectFlagDetector(Protocol):
+    def flags(self, frame) -> list[ObjectFlag]: ...
 
 
 @dataclass(frozen=True)
@@ -74,9 +78,34 @@ class UltralyticsByteTrack:
         return [Track(track_id=track_id, bbox_xyxy=tuple(map(float, box))) for track_id, box in zip(ids, boxes)]
 
 
+class UltralyticsObjectFlagDetector:
+    """Optional adapter for an explicitly supplied knife/firearm-trained model.
+
+    COCO weights must not be passed here: class-to-label mapping is explicit so a
+    generic detector cannot silently be treated as a weapon detector.
+    """
+    def __init__(self, model: str, labels_by_class: dict[int, str], confidence: float = 0.50, device: str | None = None):
+        if not labels_by_class or not set(labels_by_class.values()) <= {"knife", "firearm"}:
+            raise ValueError("weapon labels must explicitly map class IDs to knife or firearm")
+        try:
+            from ultralytics import YOLO
+        except ImportError as error:
+            raise RuntimeError("Install the optional Person 1 dependency: pip install -e '.[person1]'") from error
+        self.model, self.labels_by_class, self.confidence, self.device = YOLO(model), labels_by_class, confidence, device
+
+    def flags(self, frame) -> list[ObjectFlag]:
+        result = self.model.predict(frame, conf=self.confidence, device=self.device, verbose=False)[0]
+        if result.boxes is None:
+            return []
+        boxes = result.boxes.xyxy.cpu().tolist(); classes = result.boxes.cls.int().cpu().tolist(); confidences = result.boxes.conf.cpu().tolist()
+        return [ObjectFlag(self.labels_by_class[class_id], float(confidence), tuple(map(float, box)))
+                for box, class_id, confidence in zip(boxes, classes, confidences) if class_id in self.labels_by_class]
+
+
 def process_video(source: str | Path, config: PipelineConfig, detector: DetectorTracker,
                   on_candidate: Callable[[dict], None] | None = None,
-                  candidate_queue: queue.Queue | None = None) -> tuple[list[dict], PipelineMetrics]:
+                  candidate_queue: queue.Queue | None = None,
+                  object_detector: ObjectFlagDetector | None = None) -> tuple[list[dict], PipelineMetrics]:
     """Stream a video. VLM work belongs to an external bounded queue/consumer."""
     try:
         import cv2
@@ -112,6 +141,8 @@ def process_video(source: str | Path, config: PipelineConfig, detector: Detector
             metrics._track_ids.update(current_track_ids); previous_track_ids = current_track_ids
             marker_started = time.perf_counter()
             events = engine.process_tracks(timestamp, tracks)
+            object_flags = object_detector.flags(frame) if object_detector is not None else []
+            events += engine.process_incidents(timestamp, tracks, object_flags)
             events += engine.process_frame_observation(observe_frame(frame, timestamp, previous))
             previous = frame.copy()
             metrics.marker_seconds += time.perf_counter() - marker_started

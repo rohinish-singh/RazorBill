@@ -20,4 +20,6 @@ Example command once the staged input and CUDA environment are available:
 
 ## Current readiness
 
-Schema validation and keyframe generation are tested. CUDA is verified with PyTorch 2.10.0+cu128 and YOLO11n on the RTX 4050 Laptop GPU. Real-video output is not available because `data/raw/staged/person_test.mp4` is missing; do not treat synthetic health-fixture JSONL as a real surveillance result.
+Schema validation and keyframe generation are tested. CUDA is verified with PyTorch 2.10.0+cu128 and YOLO11n on the RTX 4050 Laptop GPU. The supplied `person_test.mp4` was later validated locally; its generated artifacts remain ignored until sharing permission is recorded. Do not treat synthetic health-fixture JSONL as a real surveillance result.
+
+Person 1 also supports review-only `person_down_candidate`, `fighting_candidate`, and explicit specialized-model weapon flags. See `docs/PERSON_1_INCIDENT_CANDIDATES.md`; Person 2 should treat every trigger as a candidate rather than a confirmed incident.

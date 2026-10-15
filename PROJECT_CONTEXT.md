@@ -18,4 +18,8 @@ Status: complete pending review. Person 1 owns the new local video file pipeline
 
 ## CP4
 
-Status: local checkpoint pending review. The stipulated staged real video was absent, so real-video claims remain blocked. CUDA inference is verified separately on the RTX 4050 with synthetic input; Person 1 added conservative continuous-alert suppression, configurable relative keyframe paths, and metrics for detection/track observations without changing the shared contract.
+Status: local checkpoint pending review. CUDA inference and a real staged-video restricted-zone candidate were verified locally; generated media remains ignored pending sharing authorization. Person 1 added conservative continuous-alert suppression, configurable relative keyframe paths, and metrics for detection/track observations without changing the shared contract.
+
+## Person 1 incident candidates
+
+Status: local implementation pending review. Person 1 now has opt-in review cues for person-down and close/high-motion interactions, and accepts explicit knife/firearm flags only from a separately supplied specialized detector. No external weapon model, unverified reference footage, or shared-contract change was added.

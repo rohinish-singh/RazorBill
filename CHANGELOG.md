@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-10-16 — Person 1 incident candidate layer
+
+- Added opt-in, review-only person-down and proximity/motion fighting cues, plus an optional explicitly mapped knife/firearm detector adapter.
+- Added conservative incident configurations, contract/keyframe tests, and usage guidance. No weapon model or reference footage was committed.
+
 ## 2026-10-15 — CP4 Person 1 reliability and handoff
 
 - Added deterministic reset/reactivation suppression for continuous crowd and camera-health candidates, plus regression tests.
