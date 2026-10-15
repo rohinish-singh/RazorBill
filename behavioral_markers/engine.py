@@ -10,7 +10,7 @@ class MarkerEngine:
     """Single-camera state machine. Callers own frame queues and backpressure."""
     def __init__(self, config: CameraConfig):
         self.config = config; self._inside = set(); self._entered = {}; self._observations = defaultdict(int)
-        self._crowd_since = {}; self._health_since = {}; self._last_alert = {}; self._previous_luminance = None
+        self._crowd_since = {}; self._health_since = {}; self._last_alert = {}; self._active_alerts = set(); self._previous_luminance = None
 
     def process_tracks(self, timestamp_seconds: float, tracks: list[Track]) -> list[MarkerEvent]:
         events = []
@@ -24,12 +24,19 @@ class MarkerEngine:
                 if self._observations[key] >= zone.min_observations and ready(self._entered.get(key), timestamp_seconds, zone.loiter_seconds):
                     events += self._emit("loitering", "suspicious_activity", timestamp_seconds, [next(t for t in members if str(t.track_id) == key[0])], {"zone_id": zone.zone_id, "observed_dwell_seconds": timestamp_seconds - self._entered[key]}, zone.cooldown_seconds)
             for key in list(self._inside - current):
-                if key[1] == zone.zone_id: self._entered.pop(key, None); self._observations.pop(key, None)
+                if key[1] == zone.zone_id:
+                    self._entered.pop(key, None); self._observations.pop(key, None)
+                    self._reset_alert(f"restricted_zone_entry:{key[0]}"); self._reset_alert(f"loitering:{key[0]}")
             self._inside = (self._inside - {key for key in self._inside if key[1] == zone.zone_id}) | current
             crowd_key = f"crowd:{zone.zone_id}"; count = len(members)
-            self._crowd_since[crowd_key] = self._crowd_since.get(crowd_key, timestamp_seconds) if count >= zone.crowd_threshold else None
+            if count >= zone.crowd_threshold:
+                self._crowd_since[crowd_key] = self._crowd_since.get(crowd_key) if self._crowd_since.get(crowd_key) is not None else timestamp_seconds
+            else:
+                self._crowd_since[crowd_key] = None
+            if count < zone.crowd_threshold:
+                self._reset_alert(f"crowd_gathering:{zone.zone_id}")
             if count >= zone.crowd_threshold and ready(self._crowd_since[crowd_key], timestamp_seconds, zone.crowd_persist_seconds):
-                events += self._emit("crowd_gathering", "crowd_incident", timestamp_seconds, members, {"zone_id": zone.zone_id, "distinct_person_count": count, "persist_seconds": timestamp_seconds - self._crowd_since[crowd_key]}, zone.cooldown_seconds)
+                events += self._emit("crowd_gathering", "crowd_incident", timestamp_seconds, members, {"zone_id": zone.zone_id, "distinct_person_count": count, "persist_seconds": timestamp_seconds - self._crowd_since[crowd_key]}, zone.cooldown_seconds, f"crowd_gathering:{zone.zone_id}")
         return events
 
     def process_frame_observation(self, observation: FrameObservation) -> list[MarkerEvent]:
@@ -53,14 +60,20 @@ class MarkerEngine:
                 self._health_since[marker] = now
         else:
             self._health_since[marker] = None
+            self._reset_alert(marker)
         if active and ready(self._health_since[marker], now, persistence if persistence is not None else self.config.health_persist_seconds):
             evidence = evidence | {"persist_seconds": now - self._health_since[marker]}
-            return self._emit(marker, "other", now, [], evidence, self.config.health_persist_seconds)
+            return self._emit(marker, "other", now, [], evidence, self.config.health_persist_seconds, marker)
         return []
 
-    def _emit(self, marker: str, category: str, now: float, tracks: list[Track], evidence: dict, cooldown: float) -> list[MarkerEvent]:
-        key = marker + ":" + ",".join(sorted(str(track.track_id) for track in tracks))
-        if now - self._last_alert.get(key, float("-inf")) < cooldown: return []
-        self._last_alert[key] = now
+    def _emit(self, marker: str, category: str, now: float, tracks: list[Track], evidence: dict, cooldown: float, dedupe_key: str | None = None) -> list[MarkerEvent]:
+        key = dedupe_key or marker + ":" + ",".join(sorted(str(track.track_id) for track in tracks))
+        # One sustained condition should create one candidate. A reset is required
+        # before the same condition is eligible again, and cooldown still applies.
+        if key in self._active_alerts or now - self._last_alert.get(key, float("-inf")) < cooldown: return []
+        self._last_alert[key] = now; self._active_alerts.add(key)
         event_id = f"marker_{self.config.camera_id}_{marker}_{int(now * 1000)}"
         return [MarkerEvent(event_id, self.config.camera_id, self.config.video_source_id, now, marker, category, "needs_review", marker, evidence, tuple(tracks))]
+
+    def _reset_alert(self, key: str) -> None:
+        self._active_alerts.discard(key)

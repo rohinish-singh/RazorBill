@@ -31,6 +31,24 @@ def test_crowd_persistence_and_cooldown():
     assert any(event.marker_type == "crowd_gathering" for event in engine.process_tracks(2, [track(1), track(2, 50)]))
     assert not engine.process_tracks(3, [track(1), track(2, 50)])
 
+def test_continuous_events_reset_before_reactivation():
+    engine = MarkerEngine(CONFIG)
+    engine.process_tracks(0, [track(1), track(2, 50)])
+    assert any(event.marker_type == "crowd_gathering" for event in engine.process_tracks(2, [track(1), track(2, 50)]))
+    assert not engine.process_tracks(8, [track(1), track(2, 50)])
+    engine.process_tracks(9, [])
+    engine.process_tracks(12, [track(1), track(2, 50)])
+    assert any(event.marker_type == "crowd_gathering" for event in engine.process_tracks(14, [track(1), track(2, 50)]))
+
+def test_camera_health_reactivation_requires_clear_frame():
+    engine = MarkerEngine(CONFIG); dark = np.zeros((16, 16, 3), np.uint8); bright = np.full((16, 16, 3), 180, np.uint8)
+    engine.process_frame_observation(observe_frame(dark, 0))
+    assert any(event.marker_type == "camera_dark" for event in engine.process_frame_observation(observe_frame(dark, 2, dark)))
+    assert not any(event.marker_type == "camera_dark" for event in engine.process_frame_observation(observe_frame(dark, 8, dark)))
+    engine.process_frame_observation(observe_frame(bright, 9, dark))
+    engine.process_frame_observation(observe_frame(dark, 10, bright))
+    assert any(event.marker_type == "camera_dark" for event in engine.process_frame_observation(observe_frame(dark, 12, dark)))
+
 def test_darkness_needs_sustained_frames_and_records_transition():
     engine = MarkerEngine(CONFIG); bright = np.full((16, 16, 3), 180, np.uint8); dark = np.zeros((16, 16, 3), np.uint8)
     engine.process_frame_observation(observe_frame(bright, 0)); assert not engine.process_frame_observation(observe_frame(dark, 1, bright))

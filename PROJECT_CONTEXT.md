@@ -15,3 +15,7 @@ Status: complete pending review. Added the standalone behavioral marker engine, 
 ## CP3
 
 Status: complete pending review. Person 1 owns the new local video file pipeline. It is contract-compatible and measured on CPU-only YOLO11n smoke inputs; GPU inference, real person-track evaluation, and external dataset acquisition remain blocked as documented.
+
+## CP4
+
+Status: local checkpoint pending review. The stipulated staged real video was absent, so real-video claims remain blocked. CUDA inference is verified separately on the RTX 4050 with synthetic input; Person 1 added conservative continuous-alert suppression, configurable relative keyframe paths, and metrics for detection/track observations without changing the shared contract.

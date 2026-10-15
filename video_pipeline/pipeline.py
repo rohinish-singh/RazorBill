@@ -23,6 +23,7 @@ class PipelineConfig:
     camera: CameraConfig
     sample_every: int = 3
     output_root: Path = Path("data/frames")
+    relative_frame_root: Path = Path("data/frames")
     confidence: float = 0.30
     device: str | None = None
     max_candidates: int = 128
@@ -38,10 +39,18 @@ class PipelineMetrics:
     inference_seconds: float = 0.0
     marker_seconds: float = 0.0
     elapsed_seconds: float = 0.0
+    frames_with_people: int = 0
+    person_detections: int = 0
+    track_continuity_hits: int = 0
+    gpu_peak_allocated_mib: float | None = None
+    gpu_peak_reserved_mib: float | None = None
+    _track_ids: set[str] = field(default_factory=set, repr=False)
 
     def as_dict(self) -> dict:
         sampled_fps = self.frames_sampled / self.elapsed_seconds if self.elapsed_seconds else 0.0
-        return self.__dict__ | {"sampled_fps": sampled_fps,
+        return {key: value for key, value in self.__dict__.items() if key != "_track_ids"} | {"sampled_fps": sampled_fps,
+            "frames_skipped_by_sampling": self.frames_read - self.frames_sampled,
+            "distinct_track_ids": len(self._track_ids),
             "mean_inference_ms": 1000 * self.inference_seconds / self.frames_sampled if self.frames_sampled else None,
             "mean_marker_ms": 1000 * self.marker_seconds / self.frames_sampled if self.frames_sampled else None}
 
@@ -79,7 +88,8 @@ def process_video(source: str | Path, config: PipelineConfig, detector: Detector
     if not capture.isOpened():
         raise FileNotFoundError(f"unable to open video source: {source}")
     fps = capture.get(cv2.CAP_PROP_FPS) or 30.0
-    engine, metrics, packets, previous = MarkerEngine(config.camera), PipelineMetrics(), [], None
+    engine, metrics, packets, previous, previous_track_ids = MarkerEngine(config.camera), PipelineMetrics(), [], None, set()
+    _reset_cuda_peak_memory(config.device)
     started = time.perf_counter()
     try:
         while True:
@@ -92,7 +102,14 @@ def process_video(source: str | Path, config: PipelineConfig, detector: Detector
             if frame_index % config.sample_every:
                 continue
             timestamp = frame_index / fps; metrics.frames_sampled += 1
-            infer_started = time.perf_counter(); tracks = detector.tracks(frame); metrics.inference_seconds += time.perf_counter() - infer_started
+            _synchronize_cuda(config.device)
+            infer_started = time.perf_counter(); tracks = detector.tracks(frame); _synchronize_cuda(config.device)
+            metrics.inference_seconds += time.perf_counter() - infer_started
+            current_track_ids = {str(track.track_id) for track in tracks}
+            metrics.person_detections += len(tracks)
+            metrics.frames_with_people += int(bool(tracks))
+            metrics.track_continuity_hits += len(previous_track_ids & current_track_ids)
+            metrics._track_ids.update(current_track_ids); previous_track_ids = current_track_ids
             marker_started = time.perf_counter()
             events = engine.process_tracks(timestamp, tracks)
             events += engine.process_frame_observation(observe_frame(frame, timestamp, previous))
@@ -106,11 +123,12 @@ def process_video(source: str | Path, config: PipelineConfig, detector: Detector
         raise
     finally:
         capture.release(); metrics.elapsed_seconds = time.perf_counter() - started
+        _record_cuda_peak_memory(metrics, config.device)
     return packets, metrics
 
 
 def _save_and_packet(event, frame, config: PipelineConfig, cv2) -> dict:
-    relative = Path("data") / "frames" / config.camera.camera_id / f"{event.event_id}.jpg"
+    relative = config.relative_frame_root / config.camera.camera_id / f"{event.event_id}.jpg"
     destination = config.output_root / config.camera.camera_id / f"{event.event_id}.jpg"
     destination.parent.mkdir(parents=True, exist_ok=True)
     if not cv2.imwrite(str(destination), frame):
@@ -139,3 +157,32 @@ def _emit(packet: dict, packets: list[dict], metrics: PipelineMetrics, limit: in
 def write_jsonl(packets: list[dict], path: str | Path) -> None:
     target = Path(path); target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text("".join(json.dumps(packet) + "\n" for packet in packets), encoding="utf-8")
+
+
+def _cuda_available_for(device: str | None) -> bool:
+    if device is None or str(device).lower() == "cpu":
+        return False
+    try:
+        import torch
+        return bool(torch.cuda.is_available())
+    except ImportError:
+        return False
+
+
+def _synchronize_cuda(device: str | None) -> None:
+    if _cuda_available_for(device):
+        import torch
+        torch.cuda.synchronize()
+
+
+def _reset_cuda_peak_memory(device: str | None) -> None:
+    if _cuda_available_for(device):
+        import torch
+        torch.cuda.reset_peak_memory_stats()
+
+
+def _record_cuda_peak_memory(metrics: PipelineMetrics, device: str | None) -> None:
+    if _cuda_available_for(device):
+        import torch
+        metrics.gpu_peak_allocated_mib = round(torch.cuda.max_memory_allocated() / 1024 / 1024, 2)
+        metrics.gpu_peak_reserved_mib = round(torch.cuda.max_memory_reserved() / 1024 / 1024, 2)

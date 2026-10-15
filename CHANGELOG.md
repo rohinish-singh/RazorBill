@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-10-15 — CP4 Person 1 reliability and handoff
+
+- Added deterministic reset/reactivation suppression for continuous crowd and camera-health candidates, plus regression tests.
+- Added Person 1 detection/track-observation metrics and configurable relative keyframe packet paths without changing the shared schema.
+- Documented that the required staged real video is missing; CUDA was separately verified with a synthetic YOLO11n GPU inference, but no real-video result is claimed.
+
 ## 2026-10-15 — CP3 Person 1 pipeline and acquisition audit
 
 - Added OpenCV file ingestion, YOLO11n/ByteTrack adapter, behavioral-marker integration, keyframe writer, contract-packet output, CLI, and Person 1 tests.

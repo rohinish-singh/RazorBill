@@ -38,3 +38,12 @@ def test_track_continuity_marker_packet_and_keyframe(tmp_path):
     assert validate_candidate_packet(packets[0]) == []
     assert (tmp_path / "frames" / "CAM_TEST" / f"{packets[0]['event_id']}.jpg").is_file()
     assert metrics.candidates_emitted == 1
+    assert metrics.frames_with_people == 4 and metrics.person_detections == 4
+    assert metrics.track_continuity_hits == 3 and metrics.as_dict()["distinct_track_ids"] == 1
+
+def test_configurable_relative_keyframe_path(tmp_path):
+    source = tmp_path / "relative.avi"; video(source)
+    current = config(tmp_path)
+    custom = PipelineConfig(current.camera, sample_every=1, output_root=tmp_path / "frames", relative_frame_root=Path("relative/frames"))
+    packets, _ = process_video(source, custom, FakeTracker([Track(3, (10, 5, 30, 40))]))
+    assert packets[0]["frame_path"].startswith("relative/frames/CAM_TEST/")
