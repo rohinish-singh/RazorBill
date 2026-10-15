@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-10-16 — CP9 pose, temporal-action interface, and evidence fusion
+
+- Added optional YOLO11n-pose inference with conservative one-to-one IoU association to existing ByteTrack people, low-confidence/multiple-match rejection, and a separate pose-geometry person-down review cue. Conservative bounding-box behavior and shared packets remain unchanged.
+- Added bounded pre/post-event MP4 evidence sidecars indexed by event ID; the sidecar does not modify Person 1 → Person 2 packet fields.
+- Added a sliding-window temporal-action adapter and an optional VideoMAE adapter. A checkpoint download did not complete locally, and generic Kinetics labels are retained only as potential review evidence, never incident confirmation.
+- Documented actual local development-run measurements, model/license constraints, and the absence of a new independent labelled evaluation set. No raw media, model weights, or generated evidence was committed.
+
 ## 2026-10-16 — CP8 person-down recall investigation
 
 - Added per-track posture transitions/durations and track-ID observation diagnostics without changing default candidate behavior or shared contracts.

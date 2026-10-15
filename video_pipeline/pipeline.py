@@ -11,6 +11,8 @@ from behavioral_markers.camera_health import observe_frame
 from behavioral_markers.engine import MarkerEngine
 from behavioral_markers.event_adapter import to_candidate_packet
 from behavioral_markers.schemas import CameraConfig, ObjectFlag, Track
+from .pose import PoseEstimator, associate_pose_cues
+from .evidence import EvidenceBuffer
 from datasets_incident_detection.contracts import validate_candidate_packet
 
 
@@ -31,6 +33,11 @@ class PipelineConfig:
     confidence: float = 0.30
     device: str | None = None
     max_candidates: int = 128
+    pose_every: int = 1
+    evidence_pre_seconds: float = 0.0
+    evidence_post_seconds: float = 0.0
+    evidence_root: Path | None = None
+    relative_evidence_root: Path | None = None
 
 
 @dataclass
@@ -53,6 +60,12 @@ class PipelineMetrics:
     track_id_appearances: int = 0
     track_id_disappearances: int = 0
     person_down_diagnostics: dict = field(default_factory=dict)
+    pose_observations: int = 0
+    pose_matched_tracks: int = 0
+    pose_inference_seconds: float = 0.0
+    max_pose_posture_ratio: float = 0.0
+    frames_meeting_pose_down_geometry: int = 0
+    evidence_clips_written: int = 0
     _track_ids: set[str] = field(default_factory=set, repr=False)
 
     def as_dict(self) -> dict:
@@ -110,7 +123,8 @@ class UltralyticsObjectFlagDetector:
 def process_video(source: str | Path, config: PipelineConfig, detector: DetectorTracker,
                   on_candidate: Callable[[dict], None] | None = None,
                   candidate_queue: queue.Queue | None = None,
-                  object_detector: ObjectFlagDetector | None = None) -> tuple[list[dict], PipelineMetrics]:
+                  object_detector: ObjectFlagDetector | None = None,
+                  pose_estimator: PoseEstimator | None = None) -> tuple[list[dict], PipelineMetrics]:
     """Stream a video. VLM work belongs to an external bounded queue/consumer."""
     try:
         import cv2
@@ -118,11 +132,16 @@ def process_video(source: str | Path, config: PipelineConfig, detector: Detector
         raise RuntimeError("OpenCV is required for video ingestion") from error
     if config.sample_every < 1:
         raise ValueError("sample_every must be >= 1")
+    if config.pose_every < 1:
+        raise ValueError("pose_every must be >= 1")
+    if config.evidence_pre_seconds < 0 or config.evidence_post_seconds < 0:
+        raise ValueError("evidence durations must be non-negative")
     capture = cv2.VideoCapture(str(source))
     if not capture.isOpened():
         raise FileNotFoundError(f"unable to open video source: {source}")
     fps = capture.get(cv2.CAP_PROP_FPS) or 30.0
     engine, metrics, packets, previous, previous_track_ids = MarkerEngine(config.camera), PipelineMetrics(), [], None, set()
+    evidence = EvidenceBuffer(config.evidence_pre_seconds, config.evidence_post_seconds, fps / config.sample_every) if config.evidence_root else None
     _reset_cuda_peak_memory(config.device)
     started = time.perf_counter()
     try:
@@ -136,6 +155,8 @@ def process_video(source: str | Path, config: PipelineConfig, detector: Detector
             if frame_index % config.sample_every:
                 continue
             timestamp = frame_index / fps; metrics.frames_sampled += 1
+            if evidence is not None:
+                evidence.add(timestamp, frame)
             _synchronize_cuda(config.device)
             infer_started = time.perf_counter(); tracks = detector.tracks(frame); _synchronize_cuda(config.device)
             metrics.inference_seconds += time.perf_counter() - infer_started
@@ -153,12 +174,21 @@ def process_video(source: str | Path, config: PipelineConfig, detector: Detector
             marker_started = time.perf_counter()
             events = engine.process_tracks(timestamp, tracks)
             object_flags = object_detector.flags(frame) if object_detector is not None else []
-            events += engine.process_incidents(timestamp, tracks, object_flags)
+            pose_cues = []
+            if pose_estimator is not None and frame_index % (config.sample_every * config.pose_every) == 0:
+                pose_started = time.perf_counter(); poses = pose_estimator.poses(frame); metrics.pose_inference_seconds += time.perf_counter() - pose_started
+                pose_cues = associate_pose_cues(tracks, poses); metrics.pose_observations += len(poses); metrics.pose_matched_tracks += len(pose_cues)
+                if pose_cues:
+                    metrics.max_pose_posture_ratio = max(metrics.max_pose_posture_ratio, max(cue.posture_ratio for cue in pose_cues))
+                metrics.frames_meeting_pose_down_geometry += int(any(cue.posture_ratio >= config.camera.incident.pose_down_ratio for cue in pose_cues))
+            events += engine.process_incidents(timestamp, tracks, object_flags, pose_cues)
             events += engine.process_frame_observation(observe_frame(frame, timestamp, previous))
             previous = frame.copy()
             metrics.marker_seconds += time.perf_counter() - marker_started
             for event in events:
                 packet = _save_and_packet(event, frame, config, cv2)
+                if evidence is not None:
+                    evidence.register(event.event_id, timestamp)
                 _emit(packet, packets, metrics, config.max_candidates, on_candidate, candidate_queue)
     except Exception:
         # The source failure is an internal observation; do not hide original errors.
@@ -166,6 +196,9 @@ def process_video(source: str | Path, config: PipelineConfig, detector: Detector
     finally:
         capture.release(); metrics.elapsed_seconds = time.perf_counter() - started
         metrics.person_down_diagnostics = engine.person_down_diagnostics()
+        if evidence is not None and config.evidence_root is not None:
+            index = evidence.write(config.evidence_root, config.relative_evidence_root or config.evidence_root, cv2)
+            metrics.evidence_clips_written = len(index)
         _record_cuda_peak_memory(metrics, config.device)
     return packets, metrics
 

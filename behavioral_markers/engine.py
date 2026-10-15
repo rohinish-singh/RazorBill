@@ -4,7 +4,7 @@ from collections import defaultdict
 from hashlib import sha1
 from math import hypot
 from .camera_health import FrameObservation
-from .schemas import CameraConfig, MarkerEvent, ObjectFlag, Track
+from .schemas import CameraConfig, MarkerEvent, ObjectFlag, PoseCue, Track
 from .temporal_rules import ready
 from .zone_rules import tracks_in_zone
 
@@ -55,7 +55,8 @@ class MarkerEngine:
         self._previous_luminance = observation.mean_luminance
         return events
 
-    def process_incidents(self, timestamp_seconds: float, tracks: list[Track], object_flags: list[ObjectFlag] | None = None) -> list[MarkerEvent]:
+    def process_incidents(self, timestamp_seconds: float, tracks: list[Track], object_flags: list[ObjectFlag] | None = None,
+                          pose_cues: list[PoseCue] | None = None) -> list[MarkerEvent]:
         """Emit conservative review candidates from temporal track cues and optional object flags.
 
         This does not classify an incident. Weapon labels are accepted only from a
@@ -70,6 +71,16 @@ class MarkerEngine:
         self._observe_person_down(timestamp_seconds, down)
         events += self._sustained_person_down(timestamp_seconds, down, settings.person_down_persist_seconds,
                                               settings.person_down_gap_tolerance_seconds)
+        if settings.pose_enabled:
+            by_id = {str(track.track_id): track for track in tracks}
+            pose_down = {str(cue.track_id): (by_id[str(cue.track_id)], cue) for cue in pose_cues or []
+                         if cue.posture_ratio >= settings.pose_down_ratio and str(cue.track_id) in by_id}
+            events += self._sustained_incident("pose_person_down_candidate", "person_down", timestamp_seconds, pose_down,
+                                               settings.pose_down_persist_seconds,
+                                               lambda item: {"track_id": item[0].track_id, "pose_posture_ratio": item[1].posture_ratio,
+                                                             "confident_keypoint_count": item[1].confident_keypoint_count,
+                                                             "cue_source": "pose_geometry", "caveat": "pose posture cue; review required"},
+                                               lambda item: [item[0]])
 
         velocities = self._track_velocities(timestamp_seconds, tracks)
         pairs = {}

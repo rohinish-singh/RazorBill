@@ -39,3 +39,7 @@ Status: local-only UR Fall subset benchmark complete under the user's provisiona
 ## CP8
 
 Status: local Person 1 recall investigation complete. Track-level diagnostics found posture-box fluctuation rather than qualifying track-ID fragmentation. An opt-in same-ID gap tolerance preserves conservative defaults and produced a review candidate on the tiny held-out pair; it is documented as non-generalizable and never as automatic fall classification.
+
+## CP9
+
+Status: local Person 1 pose/evidence extension complete pending review. YOLO11n-pose ran locally on the CP8 development fall clip and emitted one contract-valid, pose-geometry review candidate with a decodable bounded evidence clip. Conservative bounding-box defaults remain unchanged. The temporal-action adapter is present, but a real VideoMAE checkpoint could not be acquired in this environment, and generic Kinetics labels are not incident labels; no fighting/fall claim is made from it.

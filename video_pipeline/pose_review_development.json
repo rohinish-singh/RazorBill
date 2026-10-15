@@ -1,0 +1,13 @@
+{
+  "camera_id": "URFALL_POSE_REVIEW",
+  "video_source_id": "urfall_pose_development",
+  "zones": [],
+  "incident": {
+    "enabled": true,
+    "person_down_aspect_ratio": 99.0,
+    "pose_enabled": true,
+    "pose_down_ratio": 1.10,
+    "pose_down_persist_seconds": 0.10,
+    "cooldown_seconds": 30.0
+  }
+}

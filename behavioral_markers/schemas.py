@@ -28,6 +28,13 @@ class ObjectFlag:
     bbox_xyxy: tuple[float, float, float, float]
 
 @dataclass(frozen=True)
+class PoseCue:
+    """Internal, uncalibrated pose geometry associated to a Person 1 track."""
+    track_id: str | int
+    posture_ratio: float
+    confident_keypoint_count: int
+
+@dataclass(frozen=True)
 class ZoneConfig:
     zone_id: str
     polygon: tuple[tuple[float, float], ...]
@@ -47,6 +54,9 @@ class IncidentConfig:
     person_down_aspect_ratio: float = 1.25
     person_down_persist_seconds: float = 1.0
     person_down_gap_tolerance_seconds: float = 0.0
+    pose_enabled: bool = False
+    pose_down_ratio: float = 1.10
+    pose_down_persist_seconds: float = 0.25
     fighting_pair_distance: float = 160.0
     fighting_motion_pixels_per_second: float = 250.0
     fighting_persist_seconds: float = 1.0
