@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0.0",
+  "dataset_id": "local_consented_staged",
+  "dataset_version": "0.1.0",
+  "local_root": "data/local_staged",
+  "source": {
+    "original_url": "local://consented-staged",
+    "publication": "Not applicable; local consented staged clips",
+    "terms_url": "local://consent-record-required",
+    "terms_status": "unverified",
+    "acquisition_status": "not_acquired",
+    "acquisition_date": null
+  },
+  "labels": {"tailgating": "tailgating", "crowd_surge": "crowd_incident", "normal": "other"},
+  "provenance": {"owner": "RazorBill team", "limitations": ["fixture only", "no media included"]},
+  "clips": []
+}
