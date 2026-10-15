@@ -43,5 +43,24 @@ After the CUDA environment is verified and the staged video is supplied:
 
 ## Blockers
 
-1. Restore or provide an approved readable `data/raw/staged/person_test.mp4` before real-video validation.
-2. Configure zones from the actual frame dimensions before interpreting restricted-entry, loitering, or crowd results.
+1. The demonstrated polygon is clip-specific; calibrate and review production zones per camera before interpreting operational restricted-entry alerts.
+2. The short clip cannot validate loitering or crowd behavior under their configured thresholds.
+
+## Real-video validation addendum — 2026-10-16
+
+The approved staged input was supplied at `E:\honeymindproject\data\raw\staged\person_test.mp4`. It is readable without changing the source: 576×1024 pixels, 30 FPS, 55 frames (1.833 s), with OpenCV-reported fourcc `875967080`.
+
+`python -m video_pipeline.annotate` wrote the ignored inspection artifacts `reports/person_test_annotated.mp4` and `reports/person_test_tracks.json`. The annotated MP4 overlays each COCO-person bounding box, ByteTrack ID, source-relative timestamp, and frame index. It observed 83 person detections across 55 frames, three distinct IDs, and 79 consecutive-frame continuity hits. This is an operational tracking observation, not a ground-truth accuracy claim.
+
+The checked-in `example_camera.json` remains a 96×64 synthetic-fixture configuration and is not valid for this portrait video. A separate `video_pipeline/person_test_demo_camera.json` defines `track_1_entry_demo` as `[280,800]–[450,1000]`, based on the inspected track-1 footpoint trajectory. Track 1 was outside at frame 36 / 1.200 s `(271.84, 863.62)` and inside at frame 37 / 1.233 s `(288.86, 862.07)`, so this is a genuine observed entry transition rather than a forced full-frame zone.
+
+The GPU pipeline run sampled all 55 frames and emitted one `restricted_zone_entry` candidate: `marker_CAM_PERSON_TEST_DEMO_restricted_zone_entry_1233`, timestamp `1.2333333333333334` seconds, track ID 1. Its packet passes `validate_candidate_packet`, has only the authoritative top-level fields, has a source-relative timestamp equal to `37 / 30`, and its ignored JPG keyframe exists at `data/frames/CAM_PERSON_TEST_DEMO/marker_CAM_PERSON_TEST_DEMO_restricted_zone_entry_1233.jpg`.
+
+Measured run metrics: 55 frames read/sampled, 55 frames containing people, 83 detections, 3 distinct IDs, 79 continuity hits, 1 candidate emitted, 0 candidates dropped, 8.86 sampled FPS, 6.21 s elapsed, 57.29 ms mean synchronized inference, and 65.47 MiB allocated / 90.00 MiB reserved CUDA peak. No loitering or crowd result is claimed: the clip is only 1.833 s and the demo configuration keeps their 30-second / five-person thresholds.
+
+Reproduce:
+
+```powershell
+.\.venv\Scripts\python -m video_pipeline.annotate E:\honeymindproject\data\raw\staged\person_test.mp4 --output reports\person_test_annotated.mp4 --track-report reports\person_test_tracks.json --device 0
+.\.venv\Scripts\python -m video_pipeline E:\honeymindproject\data\raw\staged\person_test.mp4 --camera-config video_pipeline\person_test_demo_camera.json --sample-every 1 --device 0 --output-root data\frames --frame-path-root data/frames --jsonl reports\person_test_zone_candidates.jsonl
+```

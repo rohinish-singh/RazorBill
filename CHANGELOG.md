@@ -6,6 +6,11 @@
 - Added Person 1 detection/track-observation metrics and configurable relative keyframe packet paths without changing the shared schema.
 - Documented that the required staged real video is missing; CUDA was separately verified with a synthetic YOLO11n GPU inference, but no real-video result is claimed.
 
+## 2026-10-16 — CP4 real-video validation addendum
+
+- Added an ignored annotated-video/track-report exporter and a portrait-video demo camera configuration based on an observed person footpoint crossing.
+- Validated one real restricted-zone candidate, its unchanged shared packet shape, source-relative timestamp, and saved keyframe. No shared contracts changed.
+
 ## 2026-10-15 — CP3 Person 1 pipeline and acquisition audit
 
 - Added OpenCV file ingestion, YOLO11n/ByteTrack adapter, behavioral-marker integration, keyframe writer, contract-packet output, CLI, and Person 1 tests.

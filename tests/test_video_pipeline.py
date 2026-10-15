@@ -7,6 +7,7 @@ import pytest
 from behavioral_markers.schemas import CameraConfig, Track, ZoneConfig
 from datasets_incident_detection.contracts import validate_candidate_packet
 from video_pipeline.pipeline import PipelineConfig, process_video
+from video_pipeline.annotate import export_annotated_video
 
 cv2 = pytest.importorskip("cv2")
 
@@ -47,3 +48,10 @@ def test_configurable_relative_keyframe_path(tmp_path):
     custom = PipelineConfig(current.camera, sample_every=1, output_root=tmp_path / "frames", relative_frame_root=Path("relative/frames"))
     packets, _ = process_video(source, custom, FakeTracker([Track(3, (10, 5, 30, 40))]))
     assert packets[0]["frame_path"].startswith("relative/frames/CAM_TEST/")
+
+def test_annotation_export_contains_source_relative_track_observations(tmp_path):
+    source = tmp_path / "annotate.avi"; video(source, frames=3)
+    report = export_annotated_video(source, tmp_path / "annotated.mp4", FakeTracker([Track(2, (10, 5, 30, 40))]))
+    assert report["frames"] == 3 and report["observations"][1]["timestamp_seconds"] == pytest.approx(0.1)
+    assert report["observations"][0]["tracks"][0]["track_id"] == 2
+    assert (tmp_path / "annotated.mp4").is_file()

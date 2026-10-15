@@ -1,0 +1,23 @@
+{
+  "camera_id": "CAM_PERSON_TEST_DEMO",
+  "video_source_id": "person_test",
+  "darkness_mean_threshold": 25.0,
+  "darkness_drop": 40.0,
+  "health_persist_seconds": 2.0,
+  "freeze_mad_threshold": 1.0,
+  "freeze_persist_seconds": 3.0,
+  "obstruction_sharpness_threshold": 5.0,
+  "obstruction_texture_threshold": 3.0,
+  "zones": [
+    {
+      "zone_id": "track_1_entry_demo",
+      "polygon": [[280, 800], [450, 800], [450, 1000], [280, 1000]],
+      "restricted": true,
+      "loiter_seconds": 30.0,
+      "min_observations": 3,
+      "crowd_threshold": 5,
+      "crowd_persist_seconds": 5.0,
+      "cooldown_seconds": 30.0
+    }
+  ]
+}
