@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 from .catalog import load_manifest, make_split_plan, report_markdown, validate_manifest
+from .benchmark import evaluate_clip_candidates
 from .evaluation import evaluate_events
 
 
@@ -29,6 +30,13 @@ def main() -> int:
     evaluate.add_argument("ground_truth")
     evaluate.add_argument("--predictions")
     evaluate.add_argument("--output", required=True)
+    benchmark = subcommands.add_parser("benchmark-candidates")
+    benchmark.add_argument("ground_truth")
+    benchmark.add_argument("--predictions")
+    benchmark.add_argument("--target-category", default="person_down")
+    benchmark.add_argument("--target-trigger", default="person_down_candidate")
+    benchmark.add_argument("--keyframe-root")
+    benchmark.add_argument("--output", required=True)
     args = parser.parse_args()
     if args.command == "validate":
         manifest = load_manifest(args.manifest)
@@ -42,6 +50,9 @@ def main() -> int:
         return 0
     truth = json.loads(Path(args.ground_truth).read_text(encoding="utf-8"))
     predictions = json.loads(Path(args.predictions).read_text(encoding="utf-8")) if args.predictions else None
+    if args.command == "benchmark-candidates":
+        _write_json(args.output, evaluate_clip_candidates(truth, predictions, args.target_category, args.target_trigger, args.keyframe_root))
+        return 0
     _write_json(args.output, evaluate_events(truth, predictions))
     return 0
 

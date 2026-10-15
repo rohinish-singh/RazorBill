@@ -20,12 +20,12 @@ def validate_candidate_packet(packet: dict[str, Any]) -> list[str]:
             errors.append(f"{path_key} must be relative/configurable, not absolute")
     if not isinstance(packet.get("frame_paths", []), list):
         errors.append("frame_paths must be a list")
-    elif any(not isinstance(path, str) or Path(path).is_absolute() for path in packet["frame_paths"]):
+    elif any(not isinstance(path, str) or Path(path).is_absolute() for path in packet.get("frame_paths", [])):
         errors.append("frame_paths entries must be relative strings")
     if not isinstance(packet.get("tracks", []), list):
         errors.append("tracks must be a list")
     else:
-        for index, track in enumerate(packet["tracks"]):
+        for index, track in enumerate(packet.get("tracks", [])):
             box = track.get("bbox_xyxy") if isinstance(track, dict) else None
             if not isinstance(track, dict) or track.get("track_id") is None:
                 errors.append(f"tracks[{index}] needs track_id")

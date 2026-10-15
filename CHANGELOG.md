@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-10-16 — CP6 UR Fall benchmark readiness
+
+- Verified the official UR Fall terms and stopped acquisition because compatibility of the hackathon's intended use with CC BY-NC-SA 4.0 non-commercial academic use is not documented.
+- Added a label-aware clip-level candidate evaluator and tests; it reports delay only when an official event time is supplied and does not manufacture frame-level labels or benchmark results.
+- Added the reproducible acquisition/evaluation protocol. No external media, derived footage, model weights, or benchmark results were added.
+
 ## 2026-10-16 — CP5 incident-candidate validation
 
 - Validated conservative and interaction-review Person 1 cues locally against five uncommitted organizer clips; all emitted packets validated and keyframes opened locally.

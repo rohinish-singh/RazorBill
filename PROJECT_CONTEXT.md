@@ -27,3 +27,7 @@ Status: local implementation pending review. Person 1 now has opt-in review cues
 ## CP5
 
 Status: local validation complete pending review. Five organizer clips were tested locally under conservative and interaction-review configurations; results and limitations are documented without committing footage. Person 2 has an original, portable contract fixture and keyframe for integration testing.
+
+## CP6
+
+Status: benchmark readiness complete; acquisition blocked pending intended-use confirmation. UR Fall's official page identifies CC BY-NC-SA 4.0 non-commercial academic use, but the hackathon's organizer/sponsor classification is undocumented. No external media was downloaded or benchmark metric fabricated. A clip-level candidate evaluator is ready for an approved, independently sourced run.
