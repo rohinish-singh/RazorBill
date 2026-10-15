@@ -31,3 +31,7 @@ Status: local validation complete pending review. Five organizer clips were test
 ## CP6
 
 Status: benchmark readiness complete; acquisition blocked pending intended-use confirmation. UR Fall's official page identifies CC BY-NC-SA 4.0 non-commercial academic use, but the hackathon's organizer/sponsor classification is undocumented. No external media was downloaded or benchmark metric fabricated. A clip-level candidate evaluator is ready for an approved, independently sourced run.
+
+## CP7
+
+Status: local-only UR Fall subset benchmark complete under the user's provisional non-commercial-use assumption. The frozen person-down baseline missed both selected positive clips (TP=0, FN=2); a separately held-out two-clip persistence experiment is documented as exploratory only. No dataset media, derived artifact, model weight, or shared-contract change is committed.

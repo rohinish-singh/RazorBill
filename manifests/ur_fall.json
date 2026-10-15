@@ -1,1 +1,43 @@
-{"schema_version":"1.0.0","dataset_id":"ur_fall_detection","dataset_version":"official-unacquired","local_root":"data/raw/ur_fall","source":{"original_url":"https://fenix.ur.edu.pl/~mkepski/ds/uf.html","publication":"Kwolek and Kepski. Human fall detection on embedded platform using depth maps and wireless accelerometer. Computer Methods and Programs in Biomedicine, 2014.","terms_url":"https://fenix.ur.edu.pl/~mkepski/ds/uf.html","terms_status":"verified","acquisition_status":"blocked_intended_use_confirmation","acquisition_date":null},"labels":{"fall":"person_down","adl":"other"},"provenance":{"catalogued_by":"CP1_CP3","limitations":["CC BY-NC-SA 4.0 restricts use to non-commercial academic use","hackathon/sponsor use classification requires confirmation","official RGB, synchronization and accelerometer assets remain unacquired"]},"clips":[]}
+{
+  "schema_version": "1.0.0",
+  "dataset_id": "ur_fall_detection",
+  "dataset_version": "official-local-subset-2026-10-16",
+  "local_root": "../data/raw/ur_fall",
+  "source": {
+    "original_url": "https://fenix.ur.edu.pl/~mkepski/ds/uf.html",
+    "publication": "Kwolek and Kepski. Human fall detection on embedded platform using depth maps and wireless accelerometer. Computer Methods and Programs in Biomedicine, 2014.",
+    "terms_url": "https://fenix.ur.edu.pl/~mkepski/ds/uf.html",
+    "license": "CC BY-NC-SA 4.0",
+    "terms_status": "verified",
+    "acquisition_status": "provisionally_authorized_local_noncommercial_hackathon_use",
+    "redistribution_status": "not_verified_do_not_commit_media",
+    "acquisition_date": "2026-10-16"
+  },
+  "labels": {"fall": "person_down", "adl": "other"},
+  "provenance": {
+    "catalogued_by": "CP7",
+    "limitations": [
+      "Use is a provisional local non-commercial hackathon assumption, not verified redistribution permission.",
+      "No raw archive, RGB frame, derived video, keyframe, or model weight may be committed.",
+      "Official posture labels are from depth-derived features; this benchmark does not claim RGB frame-level fall timing."
+    ]
+  },
+  "files": [
+    {"filename": "fall-01-cam0-rgb.zip", "url": "https://fenix.ur.edu.pl/~mkepski/ds/data/fall-01-cam0-rgb.zip", "bytes": 57727213, "sha256": "e5ff96108d322d7fe5ba6871a4c50d9c26c59e74abea03d2b69b6be56521736f"},
+    {"filename": "fall-01-data.csv", "url": "https://fenix.ur.edu.pl/~mkepski/ds/data/fall-01-data.csv", "bytes": 2466, "sha256": "60e156223725e401155b4fd25a672c498ed5b4e17897337c6971d90041818bcc"},
+    {"filename": "fall-02-cam0-rgb.zip", "url": "https://fenix.ur.edu.pl/~mkepski/ds/data/fall-02-cam0-rgb.zip", "bytes": 41132305, "sha256": "8918e078c85f821ae897b8041ae789bdec7ba2f264a3e83b4fb22cf9443180e7"},
+    {"filename": "fall-02-data.csv", "url": "https://fenix.ur.edu.pl/~mkepski/ds/data/fall-02-data.csv", "bytes": 1631, "sha256": "a254fe2a53402149db758c9048a971eaa5149772fda9992bcb835f4edcb069fa"},
+    {"filename": "adl-01-cam0-rgb.zip", "url": "https://fenix.ur.edu.pl/~mkepski/ds/data/adl-01-cam0-rgb.zip", "bytes": 69079050, "sha256": "a3d51bbc71cfd06899f541f46277699d72503465f02397f91b705cf36aa2c627"},
+    {"filename": "adl-01-data.csv", "url": "https://fenix.ur.edu.pl/~mkepski/ds/data/adl-01-data.csv", "bytes": 1358, "sha256": "218bedf426ee8434a05999f1c0f8b718f493a14ccc95dda429278b471b211dc9"},
+    {"filename": "adl-02-cam0-rgb.zip", "url": "https://fenix.ur.edu.pl/~mkepski/ds/data/adl-02-cam0-rgb.zip", "bytes": 83484438, "sha256": "e66e837f4d685a02243798eaac7d4bd75fb1c2bf4a57cb18df8c1e4b8366550e"},
+    {"filename": "adl-02-data.csv", "url": "https://fenix.ur.edu.pl/~mkepski/ds/data/adl-02-data.csv", "bytes": 1658, "sha256": "057b27faf6545d5545caa8298db1d005093bb8b81a89d82d5ac6ddda68ca3f05"},
+    {"filename": "urfall-cam0-falls.csv", "url": "https://fenix.ur.edu.pl/~mkepski/ds/data/urfall-cam0-falls.csv", "bytes": 233957, "sha256": "4ed29af7040098ba0150d1030eeadd97bbfde5c3a4fb9b07df786d673e22a65c"},
+    {"filename": "urfall-cam0-adls.csv", "url": "https://fenix.ur.edu.pl/~mkepski/ds/data/urfall-cam0-adls.csv", "bytes": 671767, "sha256": "e19b2d8379538c16892241aa4cdc9e26a53b296473229c568331c23d7b3cdad1"}
+  ],
+  "clips": [
+    {"clip_id": "fall-01-cam0", "path": "derived/fall-01-cam0.mp4", "source_group": "fall-01", "labels": ["fall"], "provenance": "official RGB archive plus official depth-derived posture-label summary", "camera": "cam0", "rgb_frames": 160, "official_label_counts": {"-1": 82, "0": 30, "1": 48}},
+    {"clip_id": "fall-02-cam0", "path": "derived/fall-02-cam0.mp4", "source_group": "fall-02", "labels": ["fall"], "provenance": "official RGB archive plus official depth-derived posture-label summary", "camera": "cam0", "rgb_frames": 110, "official_label_counts": {"-1": 39, "0": 30, "1": 41}},
+    {"clip_id": "adl-01-cam0", "path": "derived/adl-01-cam0.mp4", "source_group": "adl-01", "labels": ["adl"], "provenance": "official RGB archive plus official depth-derived posture-label summary", "camera": "cam0", "rgb_frames": 150, "official_label_counts": {"-1": 144}},
+    {"clip_id": "adl-02-cam0", "path": "derived/adl-02-cam0.mp4", "source_group": "adl-02", "labels": ["adl"], "provenance": "official RGB archive plus official depth-derived posture-label summary", "camera": "cam0", "rgb_frames": 180, "official_label_counts": {"-1": 150}}
+  ]
+}

@@ -36,6 +36,7 @@ def test_empty_detections_process_without_packets(tmp_path):
     source = tmp_path / "empty.avi"; video(source)
     packets, metrics = process_video(source, config(tmp_path), FakeTracker([]))
     assert packets == [] and metrics.frames_sampled == 4
+    assert metrics.max_person_bbox_aspect_ratio == 0.0 and metrics.frames_meeting_person_down_geometry == 0
 
 def test_track_continuity_marker_packet_and_keyframe(tmp_path):
     source = tmp_path / "tracks.avi"; video(source)
@@ -46,6 +47,7 @@ def test_track_continuity_marker_packet_and_keyframe(tmp_path):
     assert metrics.candidates_emitted == 1
     assert metrics.frames_with_people == 4 and metrics.person_detections == 4
     assert metrics.track_continuity_hits == 3 and metrics.as_dict()["distinct_track_ids"] == 1
+    assert metrics.max_person_bbox_aspect_ratio == pytest.approx(20 / 35)
 
 def test_configurable_relative_keyframe_path(tmp_path):
     source = tmp_path / "relative.avi"; video(source)

@@ -48,6 +48,8 @@ class PipelineMetrics:
     track_continuity_hits: int = 0
     gpu_peak_allocated_mib: float | None = None
     gpu_peak_reserved_mib: float | None = None
+    max_person_bbox_aspect_ratio: float = 0.0
+    frames_meeting_person_down_geometry: int = 0
     _track_ids: set[str] = field(default_factory=set, repr=False)
 
     def as_dict(self) -> dict:
@@ -137,6 +139,10 @@ def process_video(source: str | Path, config: PipelineConfig, detector: Detector
             current_track_ids = {str(track.track_id) for track in tracks}
             metrics.person_detections += len(tracks)
             metrics.frames_with_people += int(bool(tracks))
+            aspects = [(track.bbox_xyxy[2] - track.bbox_xyxy[0]) / max(track.bbox_xyxy[3] - track.bbox_xyxy[1], 1e-6) for track in tracks]
+            if aspects:
+                metrics.max_person_bbox_aspect_ratio = max(metrics.max_person_bbox_aspect_ratio, max(aspects))
+            metrics.frames_meeting_person_down_geometry += int(any(aspect >= config.camera.incident.person_down_aspect_ratio for aspect in aspects))
             metrics.track_continuity_hits += len(previous_track_ids & current_track_ids)
             metrics._track_ids.update(current_track_ids); previous_track_ids = current_track_ids
             marker_started = time.perf_counter()

@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-10-16 — CP7 real-dataset benchmark
+
+- Acquired an official UR Fall local-only subset under the user's provisional non-commercial-use assumption; recorded URLs, checksums, labels, and explicit no-redistribution status in the manifest while keeping all media ignored.
+- Added reproducible RGB conversion/benchmark tooling, contract/keyframe validation, and pipeline geometry diagnostics.
+- Measured a frozen two-fall/two-ADL baseline (TP=0, FP=0, TN=2, FN=2) and documented a separate, tiny development/held-out persistence experiment without presenting it as validated accuracy.
+
 ## 2026-10-16 — CP6 UR Fall benchmark readiness
 
 - Verified the official UR Fall terms and stopped acquisition because compatibility of the hackathon's intended use with CC BY-NC-SA 4.0 non-commercial academic use is not documented.
