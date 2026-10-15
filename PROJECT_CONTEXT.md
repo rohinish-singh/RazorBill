@@ -35,3 +35,7 @@ Status: benchmark readiness complete; acquisition blocked pending intended-use c
 ## CP7
 
 Status: local-only UR Fall subset benchmark complete under the user's provisional non-commercial-use assumption. The frozen person-down baseline missed both selected positive clips (TP=0, FN=2); a separately held-out two-clip persistence experiment is documented as exploratory only. No dataset media, derived artifact, model weight, or shared-contract change is committed.
+
+## CP8
+
+Status: local Person 1 recall investigation complete. Track-level diagnostics found posture-box fluctuation rather than qualifying track-ID fragmentation. An opt-in same-ID gap tolerance preserves conservative defaults and produced a review candidate on the tiny held-out pair; it is documented as non-generalizable and never as automatic fall classification.

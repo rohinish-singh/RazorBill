@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-10-16 — CP8 person-down recall investigation
+
+- Added per-track posture transitions/durations and track-ID observation diagnostics without changing default candidate behavior or shared contracts.
+- Added opt-in, same-ID-only posture-gap tolerance and regression tests; default tolerance remains zero and separate track IDs are never joined.
+- Documented a development-only threshold selection and one-time two-clip held-out check, including the absence of separately labelled posture negatives in the authorized subset.
+
 ## 2026-10-16 — CP7 real-dataset benchmark
 
 - Acquired an official UR Fall local-only subset under the user's provisional non-commercial-use assumption; recorded URLs, checksums, labels, and explicit no-redistribution status in the manifest while keeping all media ignored.

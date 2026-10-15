@@ -80,18 +80,22 @@ def category_from_official_labels(extracted_root: Path, sequence_id: str) -> str
     return "person_down" if "1" in labels else "other"
 
 
-def run_sequence(metadata: dict, output_root: Path, device: str | None, aspect_ratio: float, persist_seconds: float) -> dict:
+def run_sequence(metadata: dict, output_root: Path, device: str | None, aspect_ratio: float, persist_seconds: float,
+                 gap_tolerance_seconds: float) -> dict:
     sequence_id = metadata["sequence_id"]
     camera = CameraConfig(camera_id="URFALL_CAM0", video_source_id=sequence_id,
                           incident=IncidentConfig(enabled=True, person_down_aspect_ratio=aspect_ratio,
-                                                  person_down_persist_seconds=persist_seconds))
+                                                  person_down_persist_seconds=persist_seconds,
+                                                  person_down_gap_tolerance_seconds=gap_tolerance_seconds))
     config = PipelineConfig(camera=camera, sample_every=1, output_root=output_root / "keyframes",
                             relative_frame_root=output_root / "keyframes", device=device)
     packets, metrics = process_video(metadata["video_path"], config, UltralyticsByteTrack(device=device))
     jsonl_path = output_root / "packets" / f"{sequence_id}.jsonl"
     jsonl_path.parent.mkdir(parents=True, exist_ok=True)
     write_jsonl(packets, jsonl_path)
-    return {"sequence_id": sequence_id, "packets": packets, "metrics": metrics.as_dict(), "packet_jsonl": str(jsonl_path)}
+    return {"sequence_id": sequence_id, "packets": packets, "metrics": metrics.as_dict(), "packet_jsonl": str(jsonl_path),
+            "person_down_config": {"aspect_ratio": aspect_ratio, "persist_seconds": persist_seconds,
+                                   "gap_tolerance_seconds": gap_tolerance_seconds}}
 
 
 def main() -> int:
@@ -102,6 +106,7 @@ def main() -> int:
     parser.add_argument("--sequences", nargs="+", default=["fall-01", "fall-02", "adl-01", "adl-02"])
     parser.add_argument("--person-down-aspect-ratio", type=float, default=1.25)
     parser.add_argument("--person-down-persist-seconds", type=float, default=1.0)
+    parser.add_argument("--person-down-gap-tolerance-seconds", type=float, default=0.0)
     parser.add_argument("--evaluate-existing", action="store_true", help="combine previously saved per-sequence runs without rerunning inference")
     args = parser.parse_args()
     extracted = args.dataset_root / "extracted"
@@ -111,7 +116,7 @@ def main() -> int:
     else:
         conversions = [convert_sequence(extracted, args.dataset_root / "derived", sequence) for sequence in args.sequences]
         predictions = [run_sequence(metadata, args.output_root, args.device, args.person_down_aspect_ratio,
-                                    args.person_down_persist_seconds) for metadata in conversions]
+                                    args.person_down_persist_seconds, args.person_down_gap_tolerance_seconds) for metadata in conversions]
     ground_truth = [{"sequence_id": sequence, "category": category_from_official_labels(extracted, sequence)} for sequence in args.sequences]
     report = evaluate_clip_candidates(ground_truth, predictions, keyframe_root=Path("."))
     args.output_root.mkdir(parents=True, exist_ok=True)

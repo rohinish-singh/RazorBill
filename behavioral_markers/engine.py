@@ -13,7 +13,8 @@ class MarkerEngine:
     def __init__(self, config: CameraConfig):
         self.config = config; self._inside = set(); self._entered = {}; self._observations = defaultdict(int)
         self._crowd_since = {}; self._health_since = {}; self._last_alert = {}; self._active_alerts = set(); self._previous_luminance = None
-        self._incident_since = {}; self._previous_centres = {}
+        self._incident_since = {}; self._incident_last_seen = {}; self._previous_centres = {}
+        self._person_down_runs = {}; self._person_down_active = {}; self._person_down_transitions = []
 
     def process_tracks(self, timestamp_seconds: float, tracks: list[Track]) -> list[MarkerEvent]:
         events = []
@@ -66,9 +67,9 @@ class MarkerEngine:
             return []
         events = []
         down = {str(track.track_id): track for track in tracks if self._aspect_ratio(track) >= settings.person_down_aspect_ratio}
-        events += self._sustained_incident("person_down_candidate", "person_down", timestamp_seconds, down,
-                                           settings.person_down_persist_seconds,
-                                           lambda item: {"track_id": item.track_id, "bbox_aspect_ratio": self._aspect_ratio(item), "caveat": "bounding-box posture cue; review required"})
+        self._observe_person_down(timestamp_seconds, down)
+        events += self._sustained_person_down(timestamp_seconds, down, settings.person_down_persist_seconds,
+                                              settings.person_down_gap_tolerance_seconds)
 
         velocities = self._track_velocities(timestamp_seconds, tracks)
         pairs = {}
@@ -101,6 +102,42 @@ class MarkerEngine:
     def source_read_failed(self, timestamp_seconds: float, reason: str) -> list[MarkerEvent]:
         return self._emit("source_read_failure", "other", timestamp_seconds, [], {"reason": reason}, 0)
 
+    def person_down_diagnostics(self) -> dict:
+        """Summarize posture-rule transitions without affecting candidate logic."""
+        tracks = []
+        for identifier in sorted(self._person_down_runs):
+            record = self._person_down_runs[identifier]
+            active = self._person_down_active.get(identifier)
+            maximum = record["max_continuous_seconds"]
+            if active is not None:
+                maximum = max(maximum, active["last_timestamp"] - active["started_at"])
+            tracks.append({"track_id": identifier, "qualifying_frames": record["qualifying_frames"],
+                           "qualifying_runs": record["qualifying_runs"], "max_continuous_seconds": maximum,
+                           "max_aspect_ratio": record["max_aspect_ratio"], "active_at_end": active is not None})
+        return {"tracks": tracks, "transitions": list(self._person_down_transitions)}
+
+    def _observe_person_down(self, now: float, qualifying: dict[str, Track]) -> None:
+        current = set(qualifying)
+        for identifier in sorted(set(self._person_down_active) - current):
+            active = self._person_down_active.pop(identifier)
+            record = self._person_down_runs[identifier]
+            duration = active["last_timestamp"] - active["started_at"]
+            record["max_continuous_seconds"] = max(record["max_continuous_seconds"], duration)
+            self._person_down_transitions.append({"transition": "exited", "track_id": identifier,
+                                                   "timestamp_seconds": now, "duration_seconds": duration})
+        for identifier, track in qualifying.items():
+            aspect = self._aspect_ratio(track)
+            record = self._person_down_runs.setdefault(identifier, {"qualifying_frames": 0, "qualifying_runs": 0,
+                                                                      "max_continuous_seconds": 0.0, "max_aspect_ratio": 0.0})
+            record["qualifying_frames"] += 1; record["max_aspect_ratio"] = max(record["max_aspect_ratio"], aspect)
+            if identifier not in self._person_down_active:
+                self._person_down_active[identifier] = {"started_at": now, "last_timestamp": now}
+                record["qualifying_runs"] += 1
+                self._person_down_transitions.append({"transition": "entered", "track_id": identifier,
+                                                       "timestamp_seconds": now, "aspect_ratio": aspect})
+            else:
+                self._person_down_active[identifier]["last_timestamp"] = now
+
     def _sustained_incident(self, marker: str, category: str, now: float, items: dict, persistence: float, evidence, event_tracks=None) -> list[MarkerEvent]:
         active_keys = {f"{marker}:{item_id}" for item_id in items}
         prefix = f"{marker}:"
@@ -115,6 +152,31 @@ class MarkerEngine:
                 tracks = event_tracks(item) if event_tracks else [item]
                 details = evidence(item) | {"persist_seconds": now - self._incident_since[key]}
                 events += self._emit(marker, category, now, tracks, details, self.config.incident.cooldown_seconds, key)
+        return events
+
+    def _sustained_person_down(self, now: float, tracks: dict[str, Track], persistence: float, gap_tolerance: float) -> list[MarkerEvent]:
+        """Smooth brief geometry flicker only for the same ByteTrack ID.
+
+        The default tolerance is zero, which is the original immediate-reset
+        behavior. A missing or non-qualifying observation never transfers state
+        to a different track ID.
+        """
+        marker = "person_down_candidate"; prefix = f"{marker}:"
+        current_keys = {f"{marker}:{identifier}" for identifier in tracks}
+        for key in [key for key in self._incident_since if key.startswith(prefix) and key not in current_keys]:
+            if now - self._incident_last_seen.get(key, float("-inf")) > gap_tolerance:
+                self._incident_since.pop(key, None); self._incident_last_seen.pop(key, None); self._reset_alert(key)
+        events = []
+        for identifier, track in tracks.items():
+            key = f"{marker}:{identifier}"
+            if key not in self._incident_since:
+                self._incident_since[key] = now
+            self._incident_last_seen[key] = now
+            if ready(self._incident_since[key], now, persistence):
+                evidence = {"track_id": track.track_id, "bbox_aspect_ratio": self._aspect_ratio(track),
+                            "persist_seconds": now - self._incident_since[key], "posture_gap_tolerance_seconds": gap_tolerance,
+                            "caveat": "bounding-box posture cue; review required"}
+                events += self._emit(marker, "person_down", now, [track], evidence, self.config.incident.cooldown_seconds, key)
         return events
 
     def _track_velocities(self, now: float, tracks: list[Track]) -> dict[str, float]:

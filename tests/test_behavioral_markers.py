@@ -5,7 +5,7 @@ import numpy as np
 from behavioral_markers.camera_health import observe_frame
 from behavioral_markers.engine import MarkerEngine
 from behavioral_markers.event_adapter import to_candidate_packet
-from behavioral_markers.schemas import CameraConfig, Track, ZoneConfig
+from behavioral_markers.schemas import CameraConfig, IncidentConfig, Track, ZoneConfig
 from datasets_incident_detection.contracts import validate_candidate_packet
 
 ZONE = ZoneConfig("door", ((0, 0), (100, 0), (100, 100), (0, 100)), restricted=True, loiter_seconds=2, min_observations=2, crowd_threshold=2, crowd_persist_seconds=2, cooldown_seconds=5)
@@ -66,3 +66,32 @@ def test_obstruction_is_not_claimed_as_malicious():
     engine.process_frame_observation(observe_frame(flat, 0)); events = engine.process_frame_observation(observe_frame(flat, 2, flat))
     obstruction = next(event for event in events if event.marker_type == "camera_obstruction_candidate")
     assert "caveat" in obstruction.evidence and obstruction.status == "needs_review"
+
+def test_person_down_diagnostics_record_posture_transitions_without_changing_rule():
+    camera = CameraConfig("CAM_INCIDENT", "fixture", incident=IncidentConfig(enabled=True, person_down_persist_seconds=1))
+    engine = MarkerEngine(camera); horizontal = Track(7, (0, 0, 50, 20)); upright = Track(7, (0, 0, 20, 50))
+    assert not engine.process_incidents(0.0, [horizontal])
+    assert not engine.process_incidents(0.2, [horizontal])
+    assert not engine.process_incidents(0.3, [upright])
+    diagnostic = engine.person_down_diagnostics()["tracks"][0]
+    assert diagnostic["track_id"] == "7" and diagnostic["qualifying_frames"] == 2
+    assert diagnostic["max_continuous_seconds"] == 0.2
+    assert [item["transition"] for item in engine.person_down_diagnostics()["transitions"]] == ["entered", "exited"]
+
+def test_person_down_gap_tolerance_smooths_only_same_track_id():
+    camera = CameraConfig("CAM_INCIDENT", "fixture", incident=IncidentConfig(enabled=True, person_down_persist_seconds=0.2, person_down_gap_tolerance_seconds=0.15))
+    engine = MarkerEngine(camera); horizontal = Track(7, (0, 0, 50, 20)); upright = Track(7, (0, 0, 20, 50))
+    assert not engine.process_incidents(0.0, [horizontal])
+    assert not engine.process_incidents(0.1, [upright])
+    events = engine.process_incidents(0.2, [horizontal])
+    assert [event.marker_type for event in events] == ["person_down_candidate"]
+    other_track = MarkerEngine(camera)
+    other_track.process_incidents(0.0, [horizontal])
+    assert not other_track.process_incidents(0.2, [Track(8, (0, 0, 50, 20))])
+
+def test_person_down_default_gap_tolerance_preserves_immediate_reset():
+    camera = CameraConfig("CAM_INCIDENT", "fixture", incident=IncidentConfig(enabled=True, person_down_persist_seconds=0.2))
+    engine = MarkerEngine(camera); horizontal = Track(7, (0, 0, 50, 20)); upright = Track(7, (0, 0, 20, 50))
+    engine.process_incidents(0.0, [horizontal])
+    engine.process_incidents(0.1, [upright])
+    assert not engine.process_incidents(0.2, [horizontal])

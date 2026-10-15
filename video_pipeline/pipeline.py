@@ -50,6 +50,9 @@ class PipelineMetrics:
     gpu_peak_reserved_mib: float | None = None
     max_person_bbox_aspect_ratio: float = 0.0
     frames_meeting_person_down_geometry: int = 0
+    track_id_appearances: int = 0
+    track_id_disappearances: int = 0
+    person_down_diagnostics: dict = field(default_factory=dict)
     _track_ids: set[str] = field(default_factory=set, repr=False)
 
     def as_dict(self) -> dict:
@@ -137,6 +140,8 @@ def process_video(source: str | Path, config: PipelineConfig, detector: Detector
             infer_started = time.perf_counter(); tracks = detector.tracks(frame); _synchronize_cuda(config.device)
             metrics.inference_seconds += time.perf_counter() - infer_started
             current_track_ids = {str(track.track_id) for track in tracks}
+            metrics.track_id_appearances += len(current_track_ids - previous_track_ids)
+            metrics.track_id_disappearances += len(previous_track_ids - current_track_ids)
             metrics.person_detections += len(tracks)
             metrics.frames_with_people += int(bool(tracks))
             aspects = [(track.bbox_xyxy[2] - track.bbox_xyxy[0]) / max(track.bbox_xyxy[3] - track.bbox_xyxy[1], 1e-6) for track in tracks]
@@ -160,6 +165,7 @@ def process_video(source: str | Path, config: PipelineConfig, detector: Detector
         raise
     finally:
         capture.release(); metrics.elapsed_seconds = time.perf_counter() - started
+        metrics.person_down_diagnostics = engine.person_down_diagnostics()
         _record_cuda_peak_memory(metrics, config.device)
     return packets, metrics
 

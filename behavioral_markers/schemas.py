@@ -46,6 +46,7 @@ class IncidentConfig:
     cooldown_seconds: float = 30.0
     person_down_aspect_ratio: float = 1.25
     person_down_persist_seconds: float = 1.0
+    person_down_gap_tolerance_seconds: float = 0.0
     fighting_pair_distance: float = 160.0
     fighting_motion_pixels_per_second: float = 250.0
     fighting_persist_seconds: float = 1.0
