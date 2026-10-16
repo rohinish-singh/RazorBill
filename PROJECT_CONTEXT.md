@@ -43,3 +43,7 @@ Status: local Person 1 recall investigation complete. Track-level diagnostics fo
 ## CP9
 
 Status: local Person 1 pose/evidence extension complete pending review. YOLO11n-pose ran locally on the CP8 development fall clip and emitted one contract-valid, pose-geometry review candidate with a decodable bounded evidence clip. Conservative bounding-box defaults remain unchanged. The temporal-action adapter is present, but a real VideoMAE checkpoint could not be acquired in this environment, and generic Kinetics labels are not incident labels; no fighting/fall claim is made from it.
+
+## CP10
+
+Status: local Person 1 temporal fighting-review implementation complete pending review. The selected task-specific VideoMAE checkpoint has an exact runtime load and explicit Fight/No Fight mapping, but is CC BY-NC experimental and has no independent local benchmark. Its outputs remain uncalibrated review cues; qualitative organizer clips are not treated as labels or accuracy evidence.

@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-10-16 — CP10 temporal fighting review
+
+- Added fail-closed task-specific VideoMAE fight/no-fight adapter, correct processor-driven RGB temporal preprocessing, sliding windows, raw-class-score evidence, and numeric CUDA-device normalization.
+- Added conservative temporal fighting review candidates with overlapping-window episode deduplication, cooldown preservation, and stride-gap handling; shared Person 1 packet fields remain unchanged.
+- Verified actual local CUDA inference and one combined detector/pose/temporal run, while documenting that organizer clips are qualitative only and no labelled benchmark metrics exist.
+- Rejected a second checkpoint because its model weights did not load exactly; no invalid scores are reported as recognition results. No weights, footage, keyframes, or evidence clips were committed.
+
 ## 2026-10-16 — CP9 pose, temporal-action interface, and evidence fusion
 
 - Added optional YOLO11n-pose inference with conservative one-to-one IoU association to existing ByteTrack people, low-confidence/multiple-match rejection, and a separate pose-geometry person-down review cue. Conservative bounding-box behavior and shared packets remain unchanged.

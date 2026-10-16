@@ -4,7 +4,7 @@ from collections import defaultdict
 from hashlib import sha1
 from math import hypot
 from .camera_health import FrameObservation
-from .schemas import CameraConfig, MarkerEvent, ObjectFlag, PoseCue, Track
+from .schemas import CameraConfig, MarkerEvent, ObjectFlag, PoseCue, TemporalActionCue, Track
 from .temporal_rules import ready
 from .zone_rules import tracks_in_zone
 
@@ -56,7 +56,8 @@ class MarkerEngine:
         return events
 
     def process_incidents(self, timestamp_seconds: float, tracks: list[Track], object_flags: list[ObjectFlag] | None = None,
-                          pose_cues: list[PoseCue] | None = None) -> list[MarkerEvent]:
+                          pose_cues: list[PoseCue] | None = None,
+                          temporal_action_cues: list[TemporalActionCue] | None = None) -> list[MarkerEvent]:
         """Emit conservative review candidates from temporal track cues and optional object flags.
 
         This does not classify an incident. Weapon labels are accepted only from a
@@ -101,6 +102,23 @@ class MarkerEngine:
                                            settings.fighting_persist_seconds,
                                            lambda item: {"track_ids": [track.track_id for track in item[0]], "qualifying_pair_count": item[1], "nearest_centre_distance": item[2], "max_motion_pixels_per_second": item[3], "caveat": "proximity/motion cue; not proof of fighting"},
                                            lambda item: list(item[0]))
+
+        # The temporal model may create a review cue without a tracking-motion
+        # cue. Its raw score is retained as evidence, never promoted to a
+        # calibrated incident probability.
+        if settings.temporal_fighting_enabled and temporal_action_cues is not None:
+            qualifying_temporal = [cue for cue in temporal_action_cues
+                                   if cue.label == settings.temporal_fighting_label and cue.score >= settings.temporal_fighting_score_threshold]
+            # One continuous stream of overlapping positive windows is one scene
+            # episode. A completed non-qualifying window resets it; a stride gap
+            # is represented by None and intentionally leaves state unchanged.
+            temporal = {"scene": max(qualifying_temporal, key=lambda cue: cue.score)} if qualifying_temporal else {}
+            events += self._sustained_incident("temporal_fighting_candidate", "fighting", timestamp_seconds, temporal, 0.0,
+                                               lambda cue: {"temporal_label": cue.label, "temporal_raw_score": cue.score,
+                                                            "temporal_class_scores": cue.class_scores, "model_id": cue.model_id,
+                                                            "window_start_seconds": cue.start_seconds, "window_end_seconds": cue.end_seconds,
+                                                            "caveat": "task-specific temporal model cue; raw score is uncalibrated; review required"},
+                                               lambda cue: list(tracks))
 
         flags = [flag for flag in object_flags or [] if flag.confidence >= settings.object_confidence_threshold]
         for label, marker in (("knife", "weapon_knife_candidate"), ("firearm", "weapon_firearm_candidate")):

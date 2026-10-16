@@ -6,7 +6,8 @@ import numpy as np
 import pytest
 
 from behavioral_markers.schemas import CameraConfig, IncidentConfig, Track
-from video_pipeline.action import SlidingWindowActionAdapter
+from datasets_incident_detection.contracts import validate_candidate_packet
+from video_pipeline.action import ActionPrediction, SlidingWindowActionAdapter, bgr_frames_to_rgb, torch_device
 from video_pipeline.evidence import EvidenceBuffer
 from video_pipeline.pipeline import PipelineConfig, process_video
 from video_pipeline.pose import PoseObservation, associate_pose_cues
@@ -61,6 +62,51 @@ def test_action_window_adapter_uses_stride_and_preserves_window_times():
     first = adapter.observe(0.2, frames[2]); assert first and first.label == "generic_action" and first.start_seconds == 0.0
     assert adapter.observe(0.3, frames[3]) is None
     second = adapter.observe(0.4, frames[4]); assert second and second.start_seconds == 0.2 and second.end_seconds == 0.4
+
+
+def test_action_preprocessing_converts_bgr_to_rgb_without_mutating_source():
+    frame = np.array([[[1, 2, 3]]], dtype=np.uint8)
+    rgb = bgr_frames_to_rgb([frame])[0]
+    assert rgb.tolist() == [[[3, 2, 1]]]
+    rgb[0, 0, 0] = 99
+    assert frame.tolist() == [[[1, 2, 3]]]
+
+
+def test_torch_device_accepts_yolo_numeric_gpu_and_cpu_values():
+    assert torch_device("0", True) == "cuda:0"
+    assert torch_device("cpu", True) == "cpu"
+    assert torch_device(None, False) == "cpu"
+
+
+def test_temporal_fighting_candidate_is_contract_valid_and_deduplicated(tmp_path):
+    class ViolentModel:
+        def predict(self, frames):
+            return ActionPrediction("violent", 0.9, {"non_violent": 0.1, "violent": 0.9}, "fixture-violence")
+    source = tmp_path / "fight.avi"; _video(source, frames=6)
+    camera = CameraConfig("FIGHT", "fixture", incident=IncidentConfig(enabled=True, temporal_fighting_enabled=True,
+                          temporal_fighting_label="violent", temporal_fighting_score_threshold=0.8, cooldown_seconds=30))
+    adapter = SlidingWindowActionAdapter(ViolentModel(), window_frames=2, stride_frames=1)
+    packets, metrics = process_video(source, PipelineConfig(camera, sample_every=1, output_root=tmp_path / "frames",
+                                      evidence_root=tmp_path / "evidence", relative_evidence_root=Path("evidence")),
+                                      _Tracker(), action_adapter=adapter)
+    assert len(packets) == 1 and packets[0]["trigger"] == "temporal_fighting_candidate"
+    assert packets[0]["tracks"] and metrics.temporal_windows == 5 and metrics.temporal_fighting_windows == 5
+    assert validate_candidate_packet(packets[0]) == [] and Path(packets[0]["frame_path"]).name in {item.name for item in (tmp_path / "frames" / "FIGHT").glob("*.jpg")}
+    assert metrics.evidence_clips_written == 1
+    evidence = next((tmp_path / "evidence").glob("*.mp4")); capture = cv2.VideoCapture(str(evidence)); ok, _ = capture.read(); capture.release()
+    assert ok
+
+
+def test_temporal_stride_gaps_do_not_reset_a_positive_episode(tmp_path):
+    class AlternatingModel:
+        def predict(self, frames):
+            return ActionPrediction("violent", 0.9, {"violent": 0.9}, "fixture-violence")
+    source = tmp_path / "stride.avi"; _video(source, frames=5)
+    camera = CameraConfig("FIGHT", "fixture", incident=IncidentConfig(enabled=True, temporal_fighting_enabled=True,
+                          temporal_fighting_label="violent", temporal_fighting_score_threshold=0.8, cooldown_seconds=30))
+    adapter = SlidingWindowActionAdapter(AlternatingModel(), window_frames=2, stride_frames=3)
+    packets, _ = process_video(source, PipelineConfig(camera, sample_every=1, output_root=tmp_path / "frames"), _Tracker(), action_adapter=adapter)
+    assert len(packets) == 1
 
 
 def test_evidence_buffer_writes_bounded_sidecar_clip(tmp_path):

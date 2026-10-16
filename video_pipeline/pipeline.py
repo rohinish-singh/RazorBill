@@ -10,9 +10,10 @@ from typing import Callable, Protocol
 from behavioral_markers.camera_health import observe_frame
 from behavioral_markers.engine import MarkerEngine
 from behavioral_markers.event_adapter import to_candidate_packet
-from behavioral_markers.schemas import CameraConfig, ObjectFlag, Track
+from behavioral_markers.schemas import CameraConfig, ObjectFlag, TemporalActionCue, Track
 from .pose import PoseEstimator, associate_pose_cues
 from .evidence import EvidenceBuffer
+from .action import SlidingWindowActionAdapter
 from datasets_incident_detection.contracts import validate_candidate_packet
 
 
@@ -66,6 +67,9 @@ class PipelineMetrics:
     max_pose_posture_ratio: float = 0.0
     frames_meeting_pose_down_geometry: int = 0
     evidence_clips_written: int = 0
+    temporal_windows: int = 0
+    temporal_inference_seconds: float = 0.0
+    temporal_fighting_windows: int = 0
     _track_ids: set[str] = field(default_factory=set, repr=False)
 
     def as_dict(self) -> dict:
@@ -124,7 +128,8 @@ def process_video(source: str | Path, config: PipelineConfig, detector: Detector
                   on_candidate: Callable[[dict], None] | None = None,
                   candidate_queue: queue.Queue | None = None,
                   object_detector: ObjectFlagDetector | None = None,
-                  pose_estimator: PoseEstimator | None = None) -> tuple[list[dict], PipelineMetrics]:
+                  pose_estimator: PoseEstimator | None = None,
+                  action_adapter: SlidingWindowActionAdapter | None = None) -> tuple[list[dict], PipelineMetrics]:
     """Stream a video. VLM work belongs to an external bounded queue/consumer."""
     try:
         import cv2
@@ -181,7 +186,17 @@ def process_video(source: str | Path, config: PipelineConfig, detector: Detector
                 if pose_cues:
                     metrics.max_pose_posture_ratio = max(metrics.max_pose_posture_ratio, max(cue.posture_ratio for cue in pose_cues))
                 metrics.frames_meeting_pose_down_geometry += int(any(cue.posture_ratio >= config.camera.incident.pose_down_ratio for cue in pose_cues))
-            events += engine.process_incidents(timestamp, tracks, object_flags, pose_cues)
+            action_cues = None
+            if action_adapter is not None:
+                _synchronize_cuda(config.device)
+                action_started = time.perf_counter(); observation = action_adapter.observe(timestamp, frame); _synchronize_cuda(config.device)
+                metrics.temporal_inference_seconds += time.perf_counter() - action_started
+                if observation is not None:
+                    metrics.temporal_windows += 1
+                    action_cues = [TemporalActionCue(observation.label, observation.score, observation.start_seconds,
+                                                     observation.end_seconds, observation.class_scores, observation.model_id)]
+                    metrics.temporal_fighting_windows += int(observation.label == config.camera.incident.temporal_fighting_label)
+            events += engine.process_incidents(timestamp, tracks, object_flags, pose_cues, action_cues)
             events += engine.process_frame_observation(observe_frame(frame, timestamp, previous))
             previous = frame.copy()
             metrics.marker_seconds += time.perf_counter() - marker_started

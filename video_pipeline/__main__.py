@@ -6,6 +6,7 @@ from pathlib import Path
 from behavioral_markers.config import camera_config_from_dict
 from .pipeline import PipelineConfig, UltralyticsByteTrack, UltralyticsObjectFlagDetector, process_video, write_jsonl
 from .pose import UltralyticsPoseEstimator
+from .action import SlidingWindowActionAdapter, VideoMAEViolenceModel
 
 
 def _weapon_labels(items: list[str]) -> dict[int, str]:
@@ -31,6 +32,9 @@ def main() -> int:
     parser.add_argument("--evidence-post-seconds", type=float, default=0.0)
     parser.add_argument("--evidence-root", help="optional local output root for evidence clips and index.jsonl")
     parser.add_argument("--relative-evidence-root", help="relative root written in the optional evidence sidecar index")
+    parser.add_argument("--temporal-fighting-model", help="task-specific VideoMAE violence checkpoint ID or local directory")
+    parser.add_argument("--temporal-window-frames", type=int, default=16)
+    parser.add_argument("--temporal-stride-frames", type=int, default=8)
     args = parser.parse_args()
     import json
     camera = camera_config_from_dict(json.loads(Path(args.camera_config).read_text(encoding="utf-8")))
@@ -46,7 +50,10 @@ def main() -> int:
         parser.error("--object-label requires --object-model")
     object_detector = UltralyticsObjectFlagDetector(args.object_model, labels, device=args.device) if args.object_model else None
     pose_estimator = UltralyticsPoseEstimator(args.pose_model, device=args.device) if args.pose_model else None
-    packets, metrics = process_video(args.video, config, UltralyticsByteTrack(confidence=config.confidence, device=args.device), object_detector=object_detector, pose_estimator=pose_estimator)
+    action_adapter = (SlidingWindowActionAdapter(VideoMAEViolenceModel(args.temporal_fighting_model, device=args.device),
+                                                 args.temporal_window_frames, args.temporal_stride_frames)
+                      if args.temporal_fighting_model else None)
+    packets, metrics = process_video(args.video, config, UltralyticsByteTrack(confidence=config.confidence, device=args.device), object_detector=object_detector, pose_estimator=pose_estimator, action_adapter=action_adapter)
     write_jsonl(packets, args.jsonl); print(json.dumps(metrics.as_dict(), indent=2)); print(f"candidate_packets={len(packets)}")
     return 0
 

@@ -35,6 +35,16 @@ class PoseCue:
     confident_keypoint_count: int
 
 @dataclass(frozen=True)
+class TemporalActionCue:
+    """Internal, raw temporal-model output; scores are not calibrated probabilities."""
+    label: str
+    score: float
+    start_seconds: float
+    end_seconds: float
+    class_scores: dict[str, float]
+    model_id: str
+
+@dataclass(frozen=True)
 class ZoneConfig:
     zone_id: str
     polygon: tuple[tuple[float, float], ...]
@@ -57,6 +67,9 @@ class IncidentConfig:
     pose_enabled: bool = False
     pose_down_ratio: float = 1.10
     pose_down_persist_seconds: float = 0.25
+    temporal_fighting_enabled: bool = False
+    temporal_fighting_label: str = "fight"
+    temporal_fighting_score_threshold: float = 0.75
     fighting_pair_distance: float = 160.0
     fighting_motion_pixels_per_second: float = 250.0
     fighting_persist_seconds: float = 1.0
