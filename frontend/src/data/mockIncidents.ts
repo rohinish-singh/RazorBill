@@ -94,8 +94,8 @@ export const MOCK_INCIDENTS: Incident[] = [
 ];
 
 export const MOCK_STATS: StatsResponse = {
-  total_incidents: 6,
-  category_counts: {
+  total: 6,
+  by_category: {
     person_down: 1,
     tailgating: 1,
     fighting: 1,
@@ -104,14 +104,19 @@ export const MOCK_STATS: StatsResponse = {
     other: 0,
     unknown: 1,
   },
-  status_counts: {
+  by_status: {
     classified: 4,
     candidate: 1,
     needs_review: 1,
     failed: 0,
   },
-  avg_processing_ms: 676.7,
-  dropped_count: 0,
+  by_camera: {
+    CAM_01: 2,
+    CAM_02: 2,
+    CAM_03: 1,
+    CAM_04: 1,
+  },
+  recent_activity_count: 0,
 };
 
 export const MOCK_QUERY_RESPONSES: Record<string, QueryResponse> = {

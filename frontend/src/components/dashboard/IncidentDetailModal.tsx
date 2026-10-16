@@ -200,7 +200,7 @@ export function IncidentDetailModal({
                   <div className="flex items-center gap-1.5 mt-1">
                     <Cpu className="w-3.5 h-3.5 text-slate-400" />
                     <span className="text-sm font-semibold font-mono text-slate-800">
-                      {incident.processing_ms} ms
+                      {incident.processing_ms != null ? `${incident.processing_ms} ms` : "Unavailable"}
                     </span>
                   </div>
                 </div>

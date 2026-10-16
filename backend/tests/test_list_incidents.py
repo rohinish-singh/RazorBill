@@ -129,6 +129,17 @@ def test_filter_by_category(seeded_client):
     assert all(item["category"] == "person_down" for item in data["items"])
 
 
+def test_filter_by_status(seeded_client):
+    response = seeded_client.get("/api/incidents?status=classified")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 5
+    assert all(item["status"] == "classified" for item in data["items"])
+
+    invalid = seeded_client.get("/api/incidents?status=not_a_status")
+    assert invalid.status_code == 422
+
+
 # 5. Applying start and end boundaries (ISO UTC timestamps and date-only)
 def test_filter_by_start_and_end_boundaries_iso(seeded_client):
     response = seeded_client.get("/api/incidents?start=2026-10-15T10:05:00Z&end=2026-10-15T10:15:00Z")

@@ -30,12 +30,12 @@ export interface Incident {
   category: IncidentCategory;
   summary: string;
   confidence: number | null;
-  confidence_type: string;
+  confidence_type?: string | null;
   frame_path: string;
   source: IncidentSource;
-  processing_ms: number;
+  processing_ms?: number | null;
   status: IncidentStatus;
-  evidence_notes: string;
+  evidence_notes?: string | null;
   created_at: string;
 }
 
@@ -51,19 +51,26 @@ export interface QueryResponse {
 }
 
 export interface StatsResponse {
-  total_incidents: number;
-  category_counts: Record<IncidentCategory, number> | Record<string, number>;
-  status_counts: Record<IncidentStatus, number> | Record<string, number>;
-  avg_processing_ms: number;
-  dropped_count: number;
+  total: number;
+  by_category: Record<string, number>;
+  by_status: Record<string, number>;
+  by_camera: Record<string, number>;
+  recent_activity_count: number;
+}
+
+export interface IncidentListResponse {
+  items: Incident[];
+  total: number;
+  limit: number;
+  offset: number;
 }
 
 export interface IncidentFilters {
   camera_id?: string;
   category?: IncidentCategory | "all";
   status?: IncidentStatus | "all";
-  start?: number;
-  end?: number;
+  start?: string;
+  end?: string;
   limit?: number;
   offset?: number;
 }

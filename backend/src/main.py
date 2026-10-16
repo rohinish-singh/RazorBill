@@ -27,6 +27,7 @@ try:
         QueryRequest,
         QueryResponse,
         StatsResponse,
+        Status as IncidentStatus,
         normalize_boundary,
     )
 except ModuleNotFoundError:
@@ -47,6 +48,7 @@ except ModuleNotFoundError:
         QueryRequest,
         QueryResponse,
         StatsResponse,
+        Status as IncidentStatus,
         normalize_boundary,
     )
 
@@ -221,6 +223,7 @@ def create_or_update_incident(
 def get_incidents(
     camera_id: Optional[str] = Query(None, description="Optional camera ID filter"),
     category: Optional[Category] = Query(None, description="Optional canonical Category filter"),
+    incident_status: Optional[IncidentStatus] = Query(None, alias="status", description="Optional canonical status filter"),
     start: Optional[str] = Query(None, description="Optional lower UTC timestamp boundary (ISO datetime or YYYY-MM-DD)"),
     end: Optional[str] = Query(None, description="Optional upper UTC timestamp boundary (ISO datetime or YYYY-MM-DD)"),
     limit: int = Query(50, ge=1, le=100, description="Page limit (1-100, default 50)"),
@@ -257,6 +260,7 @@ def get_incidents(
     items, total = list_incidents(
         camera_id=camera_id,
         category=category,
+        status=incident_status,
         start=start_norm,
         end=end_norm,
         limit=limit,

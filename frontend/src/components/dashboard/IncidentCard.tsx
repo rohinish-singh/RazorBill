@@ -173,7 +173,7 @@ export function IncidentCard({
         <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs font-mono text-slate-400">
           <div className="flex items-center gap-1.5">
             <Cpu className="w-3.5 h-3.5 text-slate-300" />
-            <span>{incident.processing_ms} ms</span>
+            <span>{incident.processing_ms ?? "Unavailable"}{incident.processing_ms != null ? " ms" : ""}</span>
           </div>
 
           <div className="flex items-center gap-1 text-[#2B7FFF] group-hover:translate-x-0.5 transition-transform font-sans font-medium text-[11px]">

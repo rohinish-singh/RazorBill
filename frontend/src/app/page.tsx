@@ -20,6 +20,7 @@ import {
 } from "../types/contracts";
 import {
   checkHealth,
+  fetchIncidentById,
   fetchIncidents,
   fetchStats,
 } from "../services/api";
@@ -41,6 +42,7 @@ export default function DashboardPage() {
   const [isBackendHealthy, setIsBackendHealthy] = useState<boolean>(true);
   const [isMockMode, setIsMockMode] = useState<boolean>(true);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
 
   // Gateway & Iris State
@@ -58,6 +60,7 @@ export default function DashboardPage() {
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
+    setLoadError(null);
     try {
       const health = await checkHealth();
       setIsBackendHealthy(health.status === "healthy" || health.status === "ok");
@@ -73,10 +76,22 @@ export default function DashboardPage() {
       setLastSyncTime(new Date());
     } catch (err) {
       console.error("[Dashboard] Error loading data:", err);
+      setIsBackendHealthy(false);
+      setLoadError(err instanceof Error ? err.message : "Unable to load the incident API.");
     } finally {
       setIsLoading(false);
     }
   }, [filters]);
+
+  const handleSelectIncident = useCallback(async (incident: Incident) => {
+    try {
+      const detail = await fetchIncidentById(incident.event_id);
+      setSelectedIncident(detail || incident);
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : "Unable to load incident details.");
+      setSelectedIncident(incident);
+    }
+  }, []);
 
   useEffect(() => {
     loadData();
@@ -188,6 +203,13 @@ export default function DashboardPage() {
             isBackendHealthy={isBackendHealthy}
           />
 
+          {loadError && (
+            <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              <span>{loadError}</span>
+              <button onClick={loadData} className="rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-xs font-mono hover:bg-rose-50">Retry</button>
+            </div>
+          )}
+
           {/* Tab Navigation */}
           <div className="flex items-center justify-between border-b border-slate-200/70 pb-1">
             <div className="flex items-center gap-2">
@@ -246,7 +268,7 @@ export default function DashboardPage() {
                     <IncidentCard
                       key={incident.event_id}
                       incident={incident}
-                      onSelect={(inc) => setSelectedIncident(inc)}
+                      onSelect={handleSelectIncident}
                     />
                   ))}
                 </div>
@@ -275,7 +297,7 @@ export default function DashboardPage() {
           ) : (
             /* Query Panel */
             <QueryPanel
-              onSelectIncident={(incident) => setSelectedIncident(incident)}
+              onSelectIncident={handleSelectIncident}
             />
           )}
         </main>

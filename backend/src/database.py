@@ -148,6 +148,7 @@ def get_incident_by_id(event_id: str, db_path: Optional[str] = None) -> Optional
 def list_incidents(
     camera_id: Optional[str] = None,
     category: Optional[Category] = None,
+    status: Optional[Status] = None,
     start: Optional[str] = None,
     end: Optional[str] = None,
     limit: int = 50,
@@ -168,6 +169,10 @@ def list_incidents(
     if category is not None:
         conditions.append("category = ?")
         params.append(category.value if isinstance(category, Category) else str(category))
+
+    if status is not None:
+        conditions.append("status = ?")
+        params.append(status.value if isinstance(status, Status) else str(status))
 
     if start is not None:
         conditions.append("created_at >= ?")
