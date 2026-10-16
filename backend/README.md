@@ -47,6 +47,9 @@ pip install -r requirements.txt
 
 # Run development server
 uvicorn src.main:app --reload --port 8000
+
+# Run tests
+pytest tests/
 ```
 
 ---
