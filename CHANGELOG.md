@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-10-16 — CP11 gun/knife review candidates
+
+- Added an opt-in, fail-closed adapter for the verified local gun/knife YOLO checkpoint, including explicit native-class validation, CUDA/CPU configuration, sampling controls, and bounded spatial-temporal confirmation.
+- Preserved first/strongest detection provenance in internal evidence, uses the strongest supporting frame for the existing keyframe path, and reuses CP9 evidence sidecars without changing shared packets.
+- Added deterministic mapping, filtering, packet, keyframe, evidence, missing-weight, and disabled-mode tests; documented actual licensed-image CUDA smoke tests and a real harmless-object false positive.
+
 ## 2026-10-16 — CP10 temporal fighting review
 
 - Added fail-closed task-specific VideoMAE fight/no-fight adapter, correct processor-driven RGB temporal preprocessing, sliding windows, raw-class-score evidence, and numeric CUDA-device normalization.

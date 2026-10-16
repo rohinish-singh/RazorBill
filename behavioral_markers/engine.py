@@ -124,7 +124,12 @@ class MarkerEngine:
         for label, marker in (("knife", "weapon_knife_candidate"), ("firearm", "weapon_firearm_candidate")):
             matching = {str(index): flag for index, flag in enumerate(flags) if flag.label.lower() == label}
             events += self._sustained_incident(marker, "other", timestamp_seconds, matching, 0.0,
-                                               lambda flag: {"object_label": flag.label, "object_confidence": flag.confidence, "object_bbox_xyxy": flag.bbox_xyxy, "caveat": "specialized detector flag; human review required"},
+                                               lambda flag: {"object_label": flag.label, "object_confidence": flag.confidence, "object_bbox_xyxy": flag.bbox_xyxy,
+                                                             "object_class_id": flag.class_id, "object_class_name": flag.class_name,
+                                                             "first_detection_timestamp_seconds": flag.first_detection_timestamp_seconds,
+                                                             "strongest_detection_timestamp_seconds": flag.strongest_detection_timestamp_seconds,
+                                                             "observation_count": flag.observation_count,
+                                                             "caveat": "specialized detector flag; raw detector score is uncalibrated; human review required"},
                                                lambda flag: self._associated_tracks(flag, tracks))
         return events
 

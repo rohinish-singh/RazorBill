@@ -14,6 +14,7 @@ from behavioral_markers.schemas import CameraConfig, ObjectFlag, TemporalActionC
 from .pose import PoseEstimator, associate_pose_cues
 from .evidence import EvidenceBuffer
 from .action import SlidingWindowActionAdapter
+from .weapons import WeaponTemporalFilter
 from datasets_incident_detection.contracts import validate_candidate_packet
 
 
@@ -39,6 +40,7 @@ class PipelineConfig:
     evidence_post_seconds: float = 0.0
     evidence_root: Path | None = None
     relative_evidence_root: Path | None = None
+    object_every: int = 1
 
 
 @dataclass
@@ -70,6 +72,9 @@ class PipelineMetrics:
     temporal_windows: int = 0
     temporal_inference_seconds: float = 0.0
     temporal_fighting_windows: int = 0
+    object_detections: int = 0
+    object_inference_seconds: float = 0.0
+    weapon_confirmed_observations: int = 0
     _track_ids: set[str] = field(default_factory=set, repr=False)
 
     def as_dict(self) -> dict:
@@ -129,7 +134,8 @@ def process_video(source: str | Path, config: PipelineConfig, detector: Detector
                   candidate_queue: queue.Queue | None = None,
                   object_detector: ObjectFlagDetector | None = None,
                   pose_estimator: PoseEstimator | None = None,
-                  action_adapter: SlidingWindowActionAdapter | None = None) -> tuple[list[dict], PipelineMetrics]:
+                  action_adapter: SlidingWindowActionAdapter | None = None,
+                  weapon_filter: WeaponTemporalFilter | None = None) -> tuple[list[dict], PipelineMetrics]:
     """Stream a video. VLM work belongs to an external bounded queue/consumer."""
     try:
         import cv2
@@ -139,6 +145,8 @@ def process_video(source: str | Path, config: PipelineConfig, detector: Detector
         raise ValueError("sample_every must be >= 1")
     if config.pose_every < 1:
         raise ValueError("pose_every must be >= 1")
+    if config.object_every < 1:
+        raise ValueError("object_every must be >= 1")
     if config.evidence_pre_seconds < 0 or config.evidence_post_seconds < 0:
         raise ValueError("evidence durations must be non-negative")
     capture = cv2.VideoCapture(str(source))
@@ -178,7 +186,16 @@ def process_video(source: str | Path, config: PipelineConfig, detector: Detector
             metrics._track_ids.update(current_track_ids); previous_track_ids = current_track_ids
             marker_started = time.perf_counter()
             events = engine.process_tracks(timestamp, tracks)
-            object_flags = object_detector.flags(frame) if object_detector is not None else []
+            object_flags = []
+            if object_detector is not None:
+                if frame_index % (config.sample_every * config.object_every) == 0:
+                    _synchronize_cuda(config.device)
+                    object_started = time.perf_counter(); raw_flags = object_detector.flags(frame); _synchronize_cuda(config.device)
+                    metrics.object_inference_seconds += time.perf_counter() - object_started; metrics.object_detections += len(raw_flags)
+                    object_flags = weapon_filter.observe(timestamp, raw_flags, frame) if weapon_filter is not None else raw_flags
+                elif weapon_filter is not None:
+                    object_flags = weapon_filter.confirmed(timestamp)
+                metrics.weapon_confirmed_observations += len(object_flags)
             pose_cues = []
             if pose_estimator is not None and frame_index % (config.sample_every * config.pose_every) == 0:
                 pose_started = time.perf_counter(); poses = pose_estimator.poses(frame); metrics.pose_inference_seconds += time.perf_counter() - pose_started
@@ -201,7 +218,12 @@ def process_video(source: str | Path, config: PipelineConfig, detector: Detector
             previous = frame.copy()
             metrics.marker_seconds += time.perf_counter() - marker_started
             for event in events:
-                packet = _save_and_packet(event, frame, config, cv2)
+                event_frame = frame
+                if event.marker_type in {"weapon_knife_candidate", "weapon_firearm_candidate"}:
+                    matching = next((flag for flag in object_flags if flag.label == event.evidence.get("object_label") and flag.support_frame is not None), None)
+                    if matching is not None:
+                        event_frame = matching.support_frame
+                packet = _save_and_packet(event, event_frame, config, cv2)
                 if evidence is not None:
                     evidence.register(event.event_id, timestamp)
                 _emit(packet, packets, metrics, config.max_candidates, on_candidate, candidate_queue)

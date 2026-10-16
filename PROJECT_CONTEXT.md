@@ -47,3 +47,7 @@ Status: local Person 1 pose/evidence extension complete pending review. YOLO11n-
 ## CP10
 
 Status: local Person 1 temporal fighting-review implementation complete pending review. The selected task-specific VideoMAE checkpoint has an exact runtime load and explicit Fight/No Fight mapping, but is CC BY-NC experimental and has no independent local benchmark. Its outputs remain uncalibrated review cues; qualitative organizer clips are not treated as labels or accuracy evidence.
+
+## CP11
+
+Status: local Person 1 gun/knife review implementation complete pending review. The opt-in checkpoint adapter validates the actual YOLO class map, applies bounded spatial-temporal confirmation, writes ordinary candidate packets/keyframes/evidence sidecars, and remains review-only. Licensed-image smoke tests produced firearm and knife candidates but also exposed a harmless-apple false positive; no accuracy or deployment claim is made.

@@ -1,0 +1,10 @@
+{
+  "camera_id": "WEAPON_REVIEW",
+  "video_source_id": "local_weapon_review",
+  "zones": [],
+  "incident": {
+    "enabled": true,
+    "object_confidence_threshold": 0.25,
+    "cooldown_seconds": 30.0
+  }
+}

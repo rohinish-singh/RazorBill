@@ -26,6 +26,12 @@ class ObjectFlag:
     label: str
     confidence: float
     bbox_xyxy: tuple[float, float, float, float]
+    class_id: int | None = None
+    class_name: str | None = None
+    first_detection_timestamp_seconds: float | None = None
+    strongest_detection_timestamp_seconds: float | None = None
+    observation_count: int = 1
+    support_frame: Any | None = field(default=None, compare=False, repr=False)
 
 @dataclass(frozen=True)
 class PoseCue:
