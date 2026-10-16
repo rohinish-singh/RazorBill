@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-10-16 — CP12 temporal fighting-review audit
+
+- Added an opt-in completed-window temporal episode filter with explicit smoothing and consecutive-window safeguards; conservative CP10 defaults remain equivalent to their prior single-window behavior.
+- Added deterministic regression coverage for smoothing, completed-negative resets, consecutive review gating, packet validity, and episode deduplication.
+- Ran local CUDA qualitative score schedules on all five organizer clips and verified one complete ignored derivative candidate/keyframe/evidence lifecycle. No labelled fighting benchmark or accuracy metric is claimed.
+
 ## 2026-10-16 — CP11 gun/knife review candidates
 
 - Added an opt-in, fail-closed adapter for the verified local gun/knife YOLO checkpoint, including explicit native-class validation, CUDA/CPU configuration, sampling controls, and bounded spatial-temporal confirmation.

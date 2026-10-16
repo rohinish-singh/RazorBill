@@ -7,7 +7,8 @@ import pytest
 
 from behavioral_markers.schemas import CameraConfig, IncidentConfig, Track
 from datasets_incident_detection.contracts import validate_candidate_packet
-from video_pipeline.action import ActionPrediction, SlidingWindowActionAdapter, bgr_frames_to_rgb, torch_device
+from video_pipeline.action import (ActionObservation, ActionPrediction, SlidingWindowActionAdapter,
+                                   TemporalFightReviewFilter, bgr_frames_to_rgb, torch_device)
 from video_pipeline.evidence import EvidenceBuffer
 from video_pipeline.pipeline import PipelineConfig, process_video
 from video_pipeline.pose import PoseObservation, associate_pose_cues
@@ -107,6 +108,44 @@ def test_temporal_stride_gaps_do_not_reset_a_positive_episode(tmp_path):
     adapter = SlidingWindowActionAdapter(AlternatingModel(), window_frames=2, stride_frames=3)
     packets, _ = process_video(source, PipelineConfig(camera, sample_every=1, output_root=tmp_path / "frames"), _Tracker(), action_adapter=adapter)
     assert len(packets) == 1
+
+
+def test_temporal_review_filter_requires_consecutive_completed_windows_and_resets_on_negative():
+    review = TemporalFightReviewFilter("fight", score_threshold=0.55, smoothing_windows=1, min_consecutive_windows=2)
+    def window(start, score):
+        return ActionObservation("fight" if score >= .5 else "no_fight", score, start, start + .1,
+                                 {"fight": score, "no_fight": 1 - score}, "fixture")
+    assert review.observe(window(0, .61)) is None
+    first = review.observe(window(.2, .58))
+    assert first and first.label == "fight" and first.consecutive_fight_windows == 2
+    assert first.raw_fight_score == pytest.approx(.58) and first.smoothed_fight_score == pytest.approx(.58)
+    assert review.observe(window(.4, .4)) is None
+    assert review.observe(window(.6, .62)) is None
+
+
+def test_temporal_review_filter_smoothing_is_explicit_and_not_raw_score_substitution():
+    review = TemporalFightReviewFilter("fight", score_threshold=0.55, smoothing_windows=2, min_consecutive_windows=1)
+    first = ActionObservation("fight", .6, 0, .1, {"fight": .6}, "fixture")
+    second = ActionObservation("fight", .52, .2, .3, {"fight": .52}, "fixture")
+    result = review.observe(first)
+    assert result and result.score == pytest.approx(.6)
+    result = review.observe(second)
+    assert result and result.raw_fight_score == pytest.approx(.52)
+    assert result.score == pytest.approx(.56) and result.smoothed_fight_score == pytest.approx(.56)
+
+
+def test_temporal_review_episode_is_deduplicated_after_consecutive_threshold(tmp_path):
+    class ReviewModel:
+        def predict(self, frames):
+            return ActionPrediction("fight", .6, {"fight": .6, "no_fight": .4}, "fixture")
+    source = tmp_path / "episode.avi"; _video(source, frames=7)
+    camera = CameraConfig("FIGHT", "fixture", incident=IncidentConfig(
+        enabled=True, temporal_fighting_enabled=True, temporal_fighting_score_threshold=.55,
+        temporal_fighting_min_consecutive_windows=2, cooldown_seconds=30))
+    packets, metrics = process_video(source, PipelineConfig(camera, sample_every=1, output_root=tmp_path / "frames"),
+                                      _Tracker(), action_adapter=SlidingWindowActionAdapter(ReviewModel(), 2, 1))
+    assert len(packets) == 1 and metrics.temporal_review_windows == 5
+    assert validate_candidate_packet(packets[0]) == []
 
 
 def test_evidence_buffer_writes_bounded_sidecar_clip(tmp_path):

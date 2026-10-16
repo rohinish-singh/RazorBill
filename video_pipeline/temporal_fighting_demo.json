@@ -1,0 +1,14 @@
+{
+  "camera_id": "TEMPORAL_FIGHT_DEMO",
+  "video_source_id": "local_temporal_review",
+  "zones": [],
+  "incident": {
+    "enabled": true,
+    "temporal_fighting_enabled": true,
+    "temporal_fighting_label": "fight",
+    "temporal_fighting_score_threshold": 0.55,
+    "temporal_fighting_smoothing_windows": 1,
+    "temporal_fighting_min_consecutive_windows": 2,
+    "cooldown_seconds": 30.0
+  }
+}

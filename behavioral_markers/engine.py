@@ -114,7 +114,9 @@ class MarkerEngine:
             # is represented by None and intentionally leaves state unchanged.
             temporal = {"scene": max(qualifying_temporal, key=lambda cue: cue.score)} if qualifying_temporal else {}
             events += self._sustained_incident("temporal_fighting_candidate", "fighting", timestamp_seconds, temporal, 0.0,
-                                               lambda cue: {"temporal_label": cue.label, "temporal_raw_score": cue.score,
+                                               lambda cue: {"temporal_label": cue.label, "temporal_raw_score": cue.raw_fight_score if cue.raw_fight_score is not None else cue.score,
+                                                            "temporal_review_score": cue.score, "temporal_smoothed_fight_score": cue.smoothed_fight_score,
+                                                            "temporal_consecutive_fight_windows": cue.consecutive_fight_windows,
                                                             "temporal_class_scores": cue.class_scores, "model_id": cue.model_id,
                                                             "window_start_seconds": cue.start_seconds, "window_end_seconds": cue.end_seconds,
                                                             "caveat": "task-specific temporal model cue; raw score is uncalibrated; review required"},

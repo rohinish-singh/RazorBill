@@ -51,3 +51,7 @@ Status: local Person 1 temporal fighting-review implementation complete pending 
 ## CP11
 
 Status: local Person 1 gun/knife review implementation complete pending review. The opt-in checkpoint adapter validates the actual YOLO class map, applies bounded spatial-temporal confirmation, writes ordinary candidate packets/keyframes/evidence sidecars, and remains review-only. Licensed-image smoke tests produced firearm and knife candidates but also exposed a harmless-apple false positive; no accuracy or deployment claim is made.
+
+## CP12
+
+Status: local Person 1 temporal fighting-review audit complete pending review. CP12 retains the CP10 exact-load task-specific VideoMAE checkpoint and conservative 0.75 raw-score configuration, then adds an opt-in consecutive completed-window review filter for plumbing experiments. All five organizer clips were measured locally as unlabeled qualitative material; one ignored short derivative produced a contract-valid review packet, keyframe, and decodable evidence sidecar. No independently labelled fighting benchmark, calibrated threshold, or accuracy claim exists.

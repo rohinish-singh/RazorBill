@@ -27,6 +27,9 @@ class ActionObservation:
     end_seconds: float
     class_scores: dict[str, float]
     model_id: str
+    raw_fight_score: float | None = None
+    smoothed_fight_score: float | None = None
+    consecutive_fight_windows: int = 0
 
 
 @dataclass(frozen=True)
@@ -129,3 +132,52 @@ class SlidingWindowActionAdapter:
             label, score = prediction; prediction = ActionPrediction(label, float(score), {label: float(score)}, type(self.model).__name__)
         return ActionObservation(prediction.label, prediction.score, self._timestamps[0], self._timestamps[-1],
                                  prediction.class_scores, prediction.model_id)
+
+
+class TemporalFightReviewFilter:
+    """Convert completed action windows into conservative fight-review episodes.
+
+    This operates only when the action adapter has completed a window.  It must
+    therefore never be called for stride gaps: a gap is *not* evidence that an
+    episode ended.  A completed non-qualifying window resets the consecutive
+    count, preventing separated high scores from being joined into one alert.
+    """
+
+    def __init__(self, fight_label: str = "fight", score_threshold: float = 0.75,
+                 smoothing_windows: int = 1, min_consecutive_windows: int = 1):
+        if smoothing_windows < 1:
+            raise ValueError("smoothing_windows must be >= 1")
+        if min_consecutive_windows < 1:
+            raise ValueError("min_consecutive_windows must be >= 1")
+        self.fight_label = fight_label
+        self.score_threshold = score_threshold
+        self._scores: deque[float] = deque(maxlen=smoothing_windows)
+        self._min_consecutive_windows = min_consecutive_windows
+        self._consecutive = 0
+        self._episode_start: float | None = None
+
+    def observe(self, observation: ActionObservation) -> ActionObservation | None:
+        """Return a qualifying review observation, or ``None`` for this completed window."""
+        raw_score = float(observation.class_scores.get(self.fight_label, 0.0))
+        self._scores.append(raw_score)
+        smoothed_score = sum(self._scores) / len(self._scores)
+        if smoothed_score < self.score_threshold:
+            self._consecutive = 0
+            self._episode_start = None
+            return None
+        self._consecutive += 1
+        if self._episode_start is None:
+            self._episode_start = observation.start_seconds
+        if self._consecutive < self._min_consecutive_windows:
+            return None
+        return ActionObservation(
+            self.fight_label,
+            smoothed_score,
+            self._episode_start,
+            observation.end_seconds,
+            observation.class_scores,
+            observation.model_id,
+            raw_fight_score=raw_score,
+            smoothed_fight_score=smoothed_score,
+            consecutive_fight_windows=self._consecutive,
+        )

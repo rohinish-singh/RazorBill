@@ -13,7 +13,7 @@ from behavioral_markers.event_adapter import to_candidate_packet
 from behavioral_markers.schemas import CameraConfig, ObjectFlag, TemporalActionCue, Track
 from .pose import PoseEstimator, associate_pose_cues
 from .evidence import EvidenceBuffer
-from .action import SlidingWindowActionAdapter
+from .action import SlidingWindowActionAdapter, TemporalFightReviewFilter
 from .weapons import WeaponTemporalFilter
 from datasets_incident_detection.contracts import validate_candidate_packet
 
@@ -72,6 +72,7 @@ class PipelineMetrics:
     temporal_windows: int = 0
     temporal_inference_seconds: float = 0.0
     temporal_fighting_windows: int = 0
+    temporal_review_windows: int = 0
     object_detections: int = 0
     object_inference_seconds: float = 0.0
     weapon_confirmed_observations: int = 0
@@ -135,6 +136,7 @@ def process_video(source: str | Path, config: PipelineConfig, detector: Detector
                   object_detector: ObjectFlagDetector | None = None,
                   pose_estimator: PoseEstimator | None = None,
                   action_adapter: SlidingWindowActionAdapter | None = None,
+                  temporal_fight_filter: TemporalFightReviewFilter | None = None,
                   weapon_filter: WeaponTemporalFilter | None = None) -> tuple[list[dict], PipelineMetrics]:
     """Stream a video. VLM work belongs to an external bounded queue/consumer."""
     try:
@@ -154,6 +156,13 @@ def process_video(source: str | Path, config: PipelineConfig, detector: Detector
         raise FileNotFoundError(f"unable to open video source: {source}")
     fps = capture.get(cv2.CAP_PROP_FPS) or 30.0
     engine, metrics, packets, previous, previous_track_ids = MarkerEngine(config.camera), PipelineMetrics(), [], None, set()
+    if action_adapter is not None and config.camera.incident.temporal_fighting_enabled and temporal_fight_filter is None:
+        temporal_fight_filter = TemporalFightReviewFilter(
+            config.camera.incident.temporal_fighting_label,
+            config.camera.incident.temporal_fighting_score_threshold,
+            config.camera.incident.temporal_fighting_smoothing_windows,
+            config.camera.incident.temporal_fighting_min_consecutive_windows,
+        )
     evidence = EvidenceBuffer(config.evidence_pre_seconds, config.evidence_post_seconds, fps / config.sample_every) if config.evidence_root else None
     _reset_cuda_peak_memory(config.device)
     started = time.perf_counter()
@@ -210,9 +219,18 @@ def process_video(source: str | Path, config: PipelineConfig, detector: Detector
                 metrics.temporal_inference_seconds += time.perf_counter() - action_started
                 if observation is not None:
                     metrics.temporal_windows += 1
-                    action_cues = [TemporalActionCue(observation.label, observation.score, observation.start_seconds,
-                                                     observation.end_seconds, observation.class_scores, observation.model_id)]
                     metrics.temporal_fighting_windows += int(observation.label == config.camera.incident.temporal_fighting_label)
+                    review = temporal_fight_filter.observe(observation) if temporal_fight_filter is not None else observation
+                    if review is not None:
+                        metrics.temporal_review_windows += 1
+                        action_cues = [TemporalActionCue(review.label, review.score, review.start_seconds,
+                                                         review.end_seconds, review.class_scores, review.model_id,
+                                                         review.raw_fight_score, review.smoothed_fight_score,
+                                                         review.consecutive_fight_windows)]
+                    else:
+                        # A completed negative (or not-yet-persistent) window is
+                        # distinct from a stride gap and deliberately resets the rule.
+                        action_cues = []
             events += engine.process_incidents(timestamp, tracks, object_flags, pose_cues, action_cues)
             events += engine.process_frame_observation(observe_frame(frame, timestamp, previous))
             previous = frame.copy()

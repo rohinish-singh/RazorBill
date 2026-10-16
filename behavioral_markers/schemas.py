@@ -49,6 +49,9 @@ class TemporalActionCue:
     end_seconds: float
     class_scores: dict[str, float]
     model_id: str
+    raw_fight_score: float | None = None
+    smoothed_fight_score: float | None = None
+    consecutive_fight_windows: int = 0
 
 @dataclass(frozen=True)
 class ZoneConfig:
@@ -76,6 +79,8 @@ class IncidentConfig:
     temporal_fighting_enabled: bool = False
     temporal_fighting_label: str = "fight"
     temporal_fighting_score_threshold: float = 0.75
+    temporal_fighting_smoothing_windows: int = 1
+    temporal_fighting_min_consecutive_windows: int = 1
     fighting_pair_distance: float = 160.0
     fighting_motion_pixels_per_second: float = 250.0
     fighting_persist_seconds: float = 1.0
