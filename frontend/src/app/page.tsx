@@ -102,7 +102,7 @@ export default function DashboardPage() {
     const q = searchQuery.toLowerCase().trim();
     return incidents.filter((inc) =>
       inc.summary.toLowerCase().includes(q) ||
-      inc.evidence_notes.toLowerCase().includes(q) ||
+      (inc.evidence_notes ?? "").toLowerCase().includes(q) ||
       inc.camera_id.toLowerCase().includes(q) ||
       inc.event_id.toLowerCase().includes(q) ||
       inc.category.toLowerCase().includes(q)

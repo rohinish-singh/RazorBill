@@ -83,3 +83,16 @@ not be presented as such.
 - The frontend build requires a complete `npm ci` installation. If npm leaves a
   partial `node_modules`, stop stale npm processes through the local environment and
   rerun `npm ci`; do not commit `node_modules`.
+
+## Verified frontend checks
+
+On 2026-10-16, from `frontend/` with Next.js 16.3.6 and the configured
+`.env.local`, both commands completed successfully:
+
+```powershell
+npm.cmd run build
+npm.cmd run lint
+```
+
+The production build completed strict TypeScript checking and generated all seven
+static routes. The lint command completed with no reported violations.
