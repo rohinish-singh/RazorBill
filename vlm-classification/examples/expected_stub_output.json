@@ -1,0 +1,15 @@
+{
+  "event_id": "evt_demo_001",
+  "camera_id": "CAM_01",
+  "timestamp_seconds": 12.5,
+  "category": "unknown",
+  "summary": "The frame was received, but the deterministic stub does not classify events.",
+  "confidence": null,
+  "confidence_type": "unavailable",
+  "frame_path": "examples/sample.png",
+  "source": "manual",
+  "processing_ms": 1,
+  "status": "needs_review",
+  "evidence_notes": "Classification was not performed by a vision model.",
+  "created_at": "2026-10-15T10:00:01Z"
+}

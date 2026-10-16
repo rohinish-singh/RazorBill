@@ -1,43 +1,72 @@
 # Person 2 — Local VLM Event Understanding and Classification
 
-## Mission
-Own local open-source VLM inference and conversion of candidate frames into evidence-based structured incident classifications. Keep this module replaceable and asynchronous.
+## Mission and boundary
 
-## Must have
-- Check actual hardware (GPU/VRAM/RAM/OS) before choosing a model.
-- Inspect Eagle's VLM/reasoning implementation and verify it runs.
-- Select one primary local open-source model/runtime; at most one fallback.
-- Accept Person 1's candidate packet and analyze a selected frame or small frame set.
-- Map output to the shared fixed categories; allow `unknown`/`other`.
-- Return the incident schema from `SHARED_CONTRACTS.md`.
-- Measure inference latency and handle errors/timeouts.
-- Provide a stub classifier early for integration.
+Person 2 consumes Person 1 candidate packets, analyzes one or a small set of saved frames, and produces the classified incident record defined in `SHARED_CONTRACTS.md`. Inference is replaceable and runs behind a bounded asynchronous worker. Person 2 does not own capture/tracking, persistence/API implementation, or the frontend.
 
-## Stretch
-Multi-frame context, quantization, prefilters, labelled evaluation/confusion matrix.
+## Implemented architecture
 
-## Do not own
-Video capture/tracking, database/API, frontend, paid cloud APIs, custom VLM training.
+`candidate packet → validation/frame selection → stub or Ollama adapter → JSON parsing and category allowlist → shared incident record → optional backend POST`
 
-## Interface
-Agree on `classify_candidate(candidate: dict) -> dict` or an async/worker equivalent by hour 4. Do not expose private model-runtime objects to Person 3.
+Public synchronous interface: `CandidateClassifier.classify_candidate(candidate: dict) -> dict`. Structurally invalid candidates raise `CandidateError` and do not produce an incident. For asynchronous integration, use `BoundedClassifierWorker.try_submit`; it returns a Future or `None` immediately when full, without raising an overload exception. Default is one worker and four pending slots. Rejected submissions are counted in `rejected_count`; the capture loop should report the count and continue. `src.client.post_incident` validates the whole incident before POSTing to `/api/incidents`.
 
-## Confidence and safety
-Never ask a generative model to invent a probability. Set confidence to null unless a real score is available; document score semantics. Do not call a score calibrated unless calibrated. Use `unknown`/`needs_review` when ambiguous. Describe visible evidence, not inferred intent.
+## Input contract
 
-## Latency
-VLM must never run inside Person 1's capture loop. Bound concurrency/queues, use a small number of useful frames, measure model-load time separately from event inference, and report p50/p95 only with sample count. If slow, let rules/detection generate a candidate/early alert and enrich asynchronously.
+Required: `event_id`, `camera_id`, `video_source_id`, `timestamp_seconds`, `frame_path`, `tracks`, `trigger`, and ISO-formatted `created_at`; `frame_paths` may be omitted. IDs must be non-empty strings; timestamps must be finite and non-negative. Tracks may be empty; each track must contain integer `track_id`, non-empty string `class_name`, and four finite numeric `bbox_xyxy` values. Additional track keys are accepted. The primary frame path is tried first, then `frame_paths`; up to three existing paths are used. Relative paths are resolved from the process working directory.
 
-## Deliverables and acceptance
-- Local inference module and setup/model license link.
-- Stub/mock mode and example outputs.
-- Schema-compatible result including `processing_ms`, `source`, `status`.
-- Reproducible test command and measured timing report (hardware, model, resolution, sample count).
-- Small labelled evaluation and limitations.
-- Clear fallback if model fails to load.
+## Output contract
 
-## Time box
-0–2 h hardware/repo check; 2–6 h model choice and frame test + stub; 6–12 h classifier; 12–18 h integration; then optimize only after end-to-end path works.
+The returned object has exactly these shared fields: `event_id`, `camera_id`, `timestamp_seconds`, `category`, `summary`, `confidence`, `confidence_type`, `frame_path`, `source`, `processing_ms`, `status`, `evidence_notes`, `created_at`.
 
-## Copy-paste ChatGPT/Claude prompt
-You are helping Person 2 on a 36-hour open-source live video summarization/classification/querying project. Read `README.md`, `SHARED_CONTRACTS.md`, and this file. Inspect Eagle's VLM code before replacing it. My ownership is local VLM inference, evidence-based summaries, fixed-category classification, and measured latency. Do not implement video capture/tracking, API/database, or frontend. Use local open-source inference only, no paid cloud APIs. Choose a model based on actual hardware; do not recommend a model without checking resource needs. Provide a stub immediately. Match the incident schema; confidence is null unless a real score exists. Ambiguous events must be `unknown`/`needs_review`. Inference must be asynchronous/bounded and must not block capture. Include setup, license, tests, sample outputs, measured timings, and limitations. Do not invent metrics. Propose contract changes before making them.
+Categories are restricted to `person_down`, `fighting`, `tailgating`, `crowd_incident`, `suspicious_activity`, `other`, `unknown`. `confidence` remains null and `confidence_type` is `unavailable`. VLM-backed successful outputs use source `vlm`. Stub outputs use source `manual`, category `unknown`, and status `needs_review`. Missing frame/adapter errors use `unknown`/`failed`; malformed or unsupported model responses use `unknown`/`needs_review`. Durations use a monotonic clock. Summaries ask for visible evidence only and do not infer intent.
+
+## Selected runtime and model
+
+Optional runtime: local Ollama using its HTTP chat API. Default model name: `moondream`. It was selected as a simple local-serving adapter option for the hackathon; it has not been verified on this machine or against the project footage. Ollama lists the Moondream 1.8B vision model and a 1.7 GB artifact, and the v2 listing indicates Apache 2.0 licensing ([model listing](https://ollama.com/library/moondream), [v2 listing](https://ollama.com/library/moondream%3Av2)). Check the upstream listing and intended-use license before distribution. Hardware queries were unavailable, and Ollama was not installed/discoverable here, so model practicality is unverified. Do not report performance/accuracy without evaluation.
+
+The Python module uses only the standard library. Python 3.10+ is required by its type syntax. Ollama is an external optional installation; no cloud service is used. Its API request asks for JSON format and the response still passes through the defensive parser. Total image input defaults to a configurable 16 MiB cap (`--max-image-bytes` or `VLM_MAX_TOTAL_IMAGE_BYTES`); exceeding the limit returns an explicit `failed` record for a valid candidate.
+
+## Setup and commands
+
+From `vlm-classification/` in PowerShell:
+
+```powershell
+py -3 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pytest tests -v
+```
+
+Stub run:
+
+```powershell
+python classify.py examples/candidate.json --runtime stub
+```
+
+Local VLM run after installing Ollama:
+
+```powershell
+ollama pull moondream
+ollama serve
+python classify.py examples/candidate.json --runtime ollama --model moondream --timeout 60 --max-image-bytes 16777216
+```
+
+The included tiny `examples/sample.png` fixture makes the stub command runnable; it is not event footage. Add `--post --backend-url http://127.0.0.1:8000` to submit to the documented Person 3 route. Backend code is not present in this repository. Model/runtime settings may also be supplied using `OLLAMA_MODEL`, `OLLAMA_BASE_URL`, `VLM_RUNTIME`, and `VLM_TIMEOUT_SECONDS`.
+
+## Tests and verification
+
+`tests/test_classifier.py` covers valid candidate/VLM output, invalid/missing event IDs, non-finite timestamps, invalid track shapes, missing frames, malformed JSON, invalid categories, invalid input not being posted by the CLI, backend-client validation, oversized image failure, JSON request mode, unavailable Ollama, timeout, non-raising bounded overload, ambiguous output, and deterministic stub mode. Tests use temporary files and fake adapters except for an unavailable-service probe against localhost port 1. Live successful Ollama classification is manual and is not claimed as verified.
+
+At implementation time, repository inspection found no prior Person 2 source code to reuse. The current test run used Python 3.14.8 and pytest 9.1.1 on Windows; 20 tests and 11 parameterized subtests passed. The sandbox's default `python` resolves to a Windows Store alias, so the verified run placed the installed Python directory first on `PATH` and pointed `TEMP`/`TMP` to the writable module directory. Ollama and NVIDIA utilities were not found; model inference and hardware feasibility remain unverified. No latency or accuracy values have been measured.
+
+## Files
+
+Added module code at `vlm-classification/src/{classifier,ollama_adapter,client,worker}.py` plus `src/__init__.py`; added `classify.py`, `mock_vlm.py`, `examples/candidate.json`, `examples/expected_stub_output.json`, `examples/sample.png`, and `tests/test_classifier.py`. Updated `vlm-classification/README.md`. No shared contract or other team module was changed.
+
+## Limitations
+
+- Runtime/hardware/model behavior on this machine is unverified.
+- Classification accuracy and latency have not been evaluated.
+- Frame files are checked for existence but not decoded before submission.
+- Backend server and actual POST response are not available for integration verification.
+- The shared incident schema has no dedicated error field; failure detail is returned in `evidence_notes`.
+- The bounded worker prevents unlimited submissions and counts rejected candidates; Person 1 still needs to call `try_submit()` and report that count in its own metrics.

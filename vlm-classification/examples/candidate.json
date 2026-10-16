@@ -1,0 +1,11 @@
+{
+  "event_id": "evt_demo_001",
+  "camera_id": "CAM_01",
+  "video_source_id": "demo_video_01",
+  "timestamp_seconds": 12.5,
+  "frame_path": "examples/sample.png",
+  "frame_paths": [],
+  "tracks": [],
+  "trigger": "sampled_frame",
+  "created_at": "2026-10-15T10:00:00Z"
+}
