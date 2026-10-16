@@ -1,5 +1,9 @@
 # Dataset incident detection checkpoint ledger
 
+## Person 1/2/3 integration
+
+Status: local integration branch in progress. Person 2's classifier can resolve repository-relative Person 1 keyframes and post classified incidents to Person 3's FastAPI/SQLite backend. A real Person 1 candidate traversed the fallback path and persisted locally; Moondream is not installed, so real VLM inference remains pending. RWF-2000 held-out evaluation tooling is prepared but no data or metrics are available.
+
 ## CP0 carry-forward
 
 See `docs/datasets_incident_detection/CP0_ARTIFACT_HANDOFF.md` for the location and preservation plan of the pre-repository CP0 artifacts. Their recommendations are internal proposals; `SHARED_CONTRACTS.md` remains authoritative.

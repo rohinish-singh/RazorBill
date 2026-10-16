@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-10-16 — Person 1/2/3 local integration
+
+- Imported Person 2's bounded local Ollama classifier and Person 3's FastAPI/SQLite backend without merging older Person 1 detection files; added repository-root frame resolution while preserving canonical candidate paths.
+- Added bounded relative-hour natural-language query parsing, an explicit held-out-only RWF-2000 evaluator, and integration documentation. Real backend persistence was verified with the deterministic VLM fallback; no Ollama model was downloaded.
+
 ## 2026-10-16 — CP13 reliability audit and handoff
 
 - Re-ran the deterministic suite, refreshed local CUDA firearm/knife candidate smokes, and revalidated the CP12 temporal packet/keyframe/evidence lifecycle without changing shared contracts or candidate semantics.
