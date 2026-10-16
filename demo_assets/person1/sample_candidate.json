@@ -3,7 +3,7 @@
   "camera_id": "CAM_PORTABLE_DEMO",
   "video_source_id": "synthetic_portable_sample",
   "timestamp_seconds": 0.0,
-  "frame_path": "demo_assets/person1/synthetic_review_keyframe.ppm",
+  "frame_path": "demo_assets/person1/synthetic_review_keyframe.png",
   "frame_paths": [],
   "tracks": [
     {

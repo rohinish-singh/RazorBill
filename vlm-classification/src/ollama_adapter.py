@@ -9,6 +9,44 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 
+_RESPONSE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "category": {
+            "type": "string",
+            "enum": [
+                "person_down", "fighting", "tailgating", "crowd_incident",
+                "suspicious_activity", "other", "unknown",
+            ],
+        },
+        "summary": {"type": "string", "minLength": 1, "maxLength": 240},
+        "evidence_notes": {
+            "anyOf": [
+                {"type": "string", "minLength": 1, "maxLength": 1000},
+                {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 4,
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "evidence": {"type": "string", "minLength": 1, "maxLength": 300},
+                            "type": {"type": "string", "maxLength": 40},
+                            "confidence": {"type": ["number", "null"]},
+                        },
+                        "required": ["evidence"],
+                        "additionalProperties": False,
+                    },
+                },
+            ],
+        },
+    },
+    "required": ["category", "summary", "evidence_notes"],
+    # Ignore optional model metadata such as confidence in the classifier parser.
+    "additionalProperties": True,
+}
+
+
 class OllamaError(RuntimeError):
     pass
 
@@ -53,9 +91,11 @@ class OllamaVisionAdapter:
         body = json.dumps({
             "model": self.model,
             "stream": False,
-            "format": "json",
+            "format": _RESPONSE_SCHEMA,
             "messages": [{"role": "user", "content": prompt, "images": images}],
-            "options": {"temperature": 0},
+            # Moondream can otherwise emit long, repeated structures despite
+            # JSON mode. The schema and modest token cap keep the response short.
+            "options": {"temperature": 0, "num_predict": 128},
         }).encode("utf-8")
         request = Request(self.base_url + "/api/chat", data=body,
                           headers={"Content-Type": "application/json"}, method="POST")

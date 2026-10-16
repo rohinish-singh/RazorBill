@@ -149,34 +149,65 @@ def _select_frames(candidate: dict[str, Any], max_frames: int) -> list[Path]:
     return selected
 
 
+def _normalize_evidence_notes(evidence: Any) -> str | None:
+    """Convert supported VLM evidence formats to the incident's string field."""
+    if isinstance(evidence, str):
+        normalized = evidence.strip()
+        return normalized or None
+    if not isinstance(evidence, list):
+        return None
+
+    parts: list[str] = []
+    for item in evidence:
+        if isinstance(item, str) and item.strip():
+            parts.append(item.strip())
+        elif isinstance(item, dict):
+            detail = item.get("evidence")
+            if isinstance(detail, str) and detail.strip():
+                parts.append(detail.strip())
+    return " ".join(parts) if parts else None
+
+
 def _parse_model_result(raw: str) -> dict[str, str] | None:
     if not isinstance(raw, str):
         return None
     text = raw.strip()
-    if text.startswith("```"):
-        text = text.strip("`")
-        if text.lower().startswith("json"):
-            text = text[4:].strip()
-    try:
-        result = json.loads(text)
-    except (ValueError, TypeError):
-        left, right = text.find("{"), text.rfind("}")
-        if left < 0 or right <= left:
-            return None
+    decoder = json.JSONDecoder()
+    result = None
+    # raw_decode tolerates surrounding prose and markdown fences while still
+    # requiring a complete, syntactically valid JSON object.
+    for position, character in enumerate(text):
+        if character != "{":
+            continue
         try:
-            result = json.loads(text[left : right + 1])
+            candidate, _ = decoder.raw_decode(text[position:])
         except (ValueError, TypeError):
-            return None
-    if not isinstance(result, dict):
+            continue
+        if isinstance(candidate, dict):
+            result = candidate
+            break
+    if result is None:
         return None
+
     category = result.get("category")
     summary = result.get("summary")
     evidence = result.get("evidence_notes")
+
     if not isinstance(category, str) or category not in ALLOWED_CATEGORIES:
         return None
-    if not all(isinstance(x, str) and x.strip() for x in (summary, evidence)):
+
+    if not isinstance(summary, str) or not summary.strip():
         return None
-    return {"category": category, "summary": summary.strip(), "evidence_notes": evidence.strip()}
+
+    evidence_text = _normalize_evidence_notes(evidence)
+    if evidence_text is None:
+        return None
+
+    return {
+        "category": category,
+        "summary": summary.strip(),
+        "evidence_notes": evidence_text,
+    }
 
 
 def _now_iso() -> str:
@@ -214,10 +245,16 @@ class CandidateClassifier:
             return self._failure(packet, "No readable frame was found in the supplied paths.", started, frame_path=frame_path)
 
         prompt = (
-            "Inspect only what is visibly supported by the image(s). Classify into exactly one of: "
+            "Analyze only visible evidence in the image(s); do not infer intent or describe events "
+            "that cannot be seen. Choose exactly one category from this exact list: "
             + ", ".join(sorted(ALLOWED_CATEGORIES))
-            + '. Do not infer intent. If evidence is unclear, use unknown. Return ONLY a JSON object with '
-            'category, summary (one concise sentence), and evidence_notes (visible evidence).'
+            + ". If the visible evidence is genuinely unclear, use unknown. Return ONLY one JSON object "
+            "with these required fields: category, summary, evidence_notes. Do not add prose or markdown. "
+            "category must exactly match one listed value. summary must be one concise sentence. "
+            "evidence_notes must be either a short string or a list of objects, each with one concise "
+            '"evidence" string. Keep evidence_notes brief and include only visible details. '
+            'Example: {"category":"unknown","summary":"The event is unclear.",'
+            '"evidence_notes":"The frame does not show enough detail."}'
         )
         try:
             parsed = _parse_model_result(self.adapter.analyze(frames, prompt))

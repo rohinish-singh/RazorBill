@@ -8,7 +8,14 @@ from threading import Event
 from unittest.mock import patch
 
 import classify as classifier_cli
-from src.classifier import CandidateClassifier, CandidateError, OUTPUT_FIELDS, StubVisionAdapter, validate_candidate
+from src.classifier import (
+    CandidateClassifier,
+    CandidateError,
+    OUTPUT_FIELDS,
+    StubVisionAdapter,
+    _parse_model_result,
+    validate_candidate,
+)
 from src.client import post_incident
 from src.ollama_adapter import OllamaVisionAdapter
 from src.worker import BoundedClassifierWorker
@@ -51,6 +58,56 @@ class ClassifierTests(unittest.TestCase):
         self.assertEqual(result["category"], "person_down")
         self.assertEqual(result["status"], "classified")
         self.assertIsNone(result["confidence"])
+
+    def test_moondream_response_with_confidence_and_structured_evidence(self):
+        response = json.dumps({
+            "category": "person_down",
+            "summary": "A person is lying on the ground.",
+            "confidence": 0.64,
+            "evidence_notes": [{
+                "type": "person",
+                "confidence": 0.64,
+                "evidence": "A person is lying horizontally on the ground.",
+            }],
+        })
+        result = CandidateClassifier(FakeAdapter(response)).classify_candidate(self.candidate)
+        self.assertEqual(result["category"], "person_down")
+        self.assertEqual(result["status"], "classified")
+        self.assertIn("lying horizontally", result["evidence_notes"])
+        self.assertIsNone(result["confidence"])
+
+    def test_exact_moondream_person_down_response_is_classified(self):
+        response = (
+            '{"category":"person_down","summary":"person down",'
+            '"evidence_notes":[{"evidence":"person down","type":"person",'
+            '"confidence":0.68}]}'
+        )
+        result = CandidateClassifier(FakeAdapter(response)).classify_candidate(self.candidate)
+        self.assertEqual(result["category"], "person_down")
+        self.assertEqual(result["status"], "classified")
+        self.assertEqual(result["summary"], "person down")
+        self.assertEqual(result["evidence_notes"], "person down")
+        # Per the shared incident schema, model confidence is not promoted to
+        # a top-level confidence value.
+        self.assertIsNone(result["confidence"])
+        self.assertEqual(result["confidence_type"], "unavailable")
+
+    def test_parser_accepts_surrounding_whitespace_fences_and_extra_text(self):
+        payload = json.dumps({
+            "category": "person_down",
+            "summary": "A person is on the ground.",
+            "confidence": 0.64,
+            "evidence_notes": "A person is lying on the ground.",
+        })
+        for raw in (
+            f"  \n{payload} \n",
+            f"```json\n{payload}\n```",
+            f"Model response:\n{payload}\nEnd of response.",
+        ):
+            with self.subTest(raw=raw):
+                result = _parse_model_result(raw)
+                self.assertEqual(result["category"], "person_down")
+                self.assertIn("lying on the ground", result["evidence_notes"])
 
     def test_missing_required_field(self):
         bad = dict(self.candidate)
@@ -142,7 +199,14 @@ class ClassifierTests(unittest.TestCase):
         with patch("src.ollama_adapter.urlopen", return_value=response) as mocked_urlopen:
             adapter.analyze([self.frame], "return json")
         request = mocked_urlopen.call_args.args[0]
-        self.assertEqual(json.loads(request.data)["format"], "json")
+        body = json.loads(request.data)
+        schema = body["format"]
+        self.assertIsInstance(schema, dict)
+        self.assertEqual(schema["properties"]["category"]["enum"], [
+            "person_down", "fighting", "tailgating", "crowd_incident",
+            "suspicious_activity", "other", "unknown",
+        ])
+        self.assertEqual(body["options"]["num_predict"], 128)
 
     def test_invalid_candidate_cannot_be_posted_by_cli(self):
         bad_path = Path(self.temp.name) / "invalid.json"
