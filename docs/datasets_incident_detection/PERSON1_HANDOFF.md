@@ -23,3 +23,21 @@ Example command once the staged input and CUDA environment are available:
 Schema validation and keyframe generation are tested. CUDA is verified with PyTorch 2.10.0+cu128 and YOLO11n on the RTX 4050 Laptop GPU. The supplied `person_test.mp4` was later validated locally; its generated artifacts remain ignored until sharing permission is recorded. Do not treat synthetic health-fixture JSONL as a real surveillance result.
 
 Person 1 also supports review-only `person_down_candidate`, `fighting_candidate`, and explicit specialized-model weapon flags. See `docs/PERSON_1_INCIDENT_CANDIDATES.md`; Person 2 should treat every trigger as a candidate rather than a confirmed incident.
+
+## CP13 integration pack
+
+Branch `feature/datasets-incident-detection` contains the source and
+configuration for local Person 1 reproduction. The ignored local pack is
+`data/raw/person1_handoff/`; read its `README.md` and `manifest.json` from the
+repository root. It contains canonical packets for
+`temporal_fighting_candidate`, `weapon_firearm_candidate`, and
+`weapon_knife_candidate`, plus local keyframe/evidence copies for inspection.
+
+Use `video_pipeline/temporal_fighting_review.json` for CP10's conservative
+temporal setting. `video_pipeline/temporal_fighting_demo.json` is only an
+exploratory two-consecutive-window plumbing demo. Use
+`video_pipeline/weapon_review.json` with the audited local weights and CLI
+options in `CP13_RELIABILITY_AND_HANDOFF.md`. Person 2 must preserve the Person
+1 input packet, keep VLM inference asynchronous, and send Person 3 only the
+separately defined classified-incident object. Runtime Person 2/3 integration
+is pending.

@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-10-16 — CP13 reliability audit and handoff
+
+- Re-ran the deterministic suite, refreshed local CUDA firearm/knife candidate smokes, and revalidated the CP12 temporal packet/keyframe/evidence lifecycle without changing shared contracts or candidate semantics.
+- Documented score-only organizer-clip observations, the reproducible CC0 apple false-positive observation, UR Fall sample limitations, measured local performance, and an ignored Person 1 handoff package for asynchronous Person 2/3 integration.
+
 ## 2026-10-16 — CP12 temporal fighting-review audit
 
 - Added an opt-in completed-window temporal episode filter with explicit smoothing and consecutive-window safeguards; conservative CP10 defaults remain equivalent to their prior single-window behavior.

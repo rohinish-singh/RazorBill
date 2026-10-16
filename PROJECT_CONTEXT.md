@@ -55,3 +55,7 @@ Status: local Person 1 gun/knife review implementation complete pending review. 
 ## CP12
 
 Status: local Person 1 temporal fighting-review audit complete pending review. CP12 retains the CP10 exact-load task-specific VideoMAE checkpoint and conservative 0.75 raw-score configuration, then adds an opt-in consecutive completed-window review filter for plumbing experiments. All five organizer clips were measured locally as unlabeled qualitative material; one ignored short derivative produced a contract-valid review packet, keyframe, and decodable evidence sidecar. No independently labelled fighting benchmark, calibrated threshold, or accuracy claim exists.
+
+## CP13
+
+Status: local Person 1 reliability audit and integration handoff complete pending teammate integration. CP13 re-ran the deterministic suite, refreshed real CUDA firearm/knife review candidates, revalidated the temporal candidate lifecycle, and assembled an ignored local handoff package. All outputs remain review cues; organizer clips are unlabelled, weapon smokes are not an accuracy benchmark, and Person 2/3/4 runtime integration is pending.
